@@ -43,6 +43,32 @@ Release 签名：`android/key.properties` + keystore 均已 gitignore，
 照 `android/key.properties.example` 配好后 `flutter build apk --release` 自动签名；
 无签名文件时 debug key 自动兜底（见 `android/app/build.gradle.kts`）。
 
+## 发版（GitHub Actions 云打包）
+
+打 tag 即发版，Actions 自动跑 analyze + test + 打包，APK 挂到 GitHub Release 下：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0     # 走 SSH，HTTPS 写通道不通
+```
+
+正式签名（与本地包覆盖安装兼容）需先在仓库 Settings → Secrets 配四个值：
+
+| Secret | 内容 |
+|---|---|
+| `KEYSTORE_BASE64` | keystore 转 base64（命令见下） |
+| `KEY_ALIAS` | 如 `pideck` |
+| `KEY_PASSWORD` | key 口令 |
+| `STORE_PASSWORD` | store 口令 |
+
+```bash
+# 本机把 keystore 转 base64（换成你的实际路径），输出贴进 KEYSTORE_BASE64
+certutil -encode android/keystore/pideck-release.jks %TEMP%\ks.b64 && type %TEMP%\ks.b64
+```
+
+缺 Secrets 时 Actions 降级打出 debug 签名包：能装，但与正式版签名不一致、
+不可覆盖安装（需卸载重装）。
+
 ## License
 
 MIT，见 [LICENSE](LICENSE)。

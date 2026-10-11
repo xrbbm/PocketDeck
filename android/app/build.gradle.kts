@@ -38,17 +38,28 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        // CI (GitHub Actions) has no key.properties: fall back to debug key
+        // so unsigned cloud builds still succeed. Local builds with a valid
+        // key.properties keep the real release signature (see README).
+        val hasReleaseKey = (keystoreProperties["keyAlias"] as String?).isNullOrBlank().not()
+            && (keystoreProperties["keyPassword"] as String?).isNullOrBlank().not()
+            && (keystoreProperties["storePassword"] as String?).isNullOrBlank().not()
+            && (keystoreProperties["storeFile"] as String?).isNullOrBlank().not()
+            && (keystoreProperties["storeFile"] as String?)?.let { rootProject.file(it).exists() } == true
+        if (hasReleaseKey) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Real key when configured locally/CI, debug key otherwise.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
