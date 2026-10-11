@@ -49,8 +49,7 @@ app.*.map.json
 android/key.properties
 
 # ---- PocketDeck: local-only, never commit ----
-# internal dev notes (kept in ../pideck-aa-local/)
-AGENTS.md
+# (AGENTS.md in repo root is the sanitized public edition; internal notes live in ../pideck-aa-local/)
 # local verification screenshots (~10MB, kept in ../pideck-aa-local/screenshots/)
 *.png
 # upstream web reference snapshot (kept in ../pideck-aa-local/web-snapshot/)
