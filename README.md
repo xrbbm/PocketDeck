@@ -8,7 +8,7 @@ PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Android-lightgrey)
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-blue)
-![Version](https://img.shields.io/badge/version-v0.9.0--p1-blue)
+![Version](https://img.shields.io/badge/version-v0.9.0--p2-blue)
 
 ## 📑 目录
 
