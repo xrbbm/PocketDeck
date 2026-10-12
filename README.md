@@ -1,74 +1,42 @@
 # PocketDeck 口袋舰桥
 
-PiDeck 桌面端 Web 服务的 Flutter 原生客户端：去掉 WebView，用原生 UI 全量对齐网页版。
-扫码配对，进场即聊。
+PiDeck 桌面端的手机客户端。把桌面上聊到一半的 AI 会话装进口袋：在同一个 Wi-Fi 下扫个码，打开就是上次的会话，接着聊。
 
-> Upstream reference: [ayuayue/PiDeck](https://github.com/ayuayue/PiDeck) v0.8.0
-> （`webApi.ts` / `WebChatApp.tsx` / `WebTimeline.tsx`）
+桌面端（上游）：[ayuayue/PiDeck](https://github.com/ayuayue/PiDeck)，对照它的网页版照着做的。
 
-## 功能
+## 能做什么
 
-- **聊天核心**：历史分页 + SSE 流式（文本/思考/工具交错时间线分段）+ 中断 + 模型切换 + 上下文用量圆环
-- **会话管理**：分组抽屉、重命名、复制/克隆、重启、压缩、导出 HTML、分支家族切换
-- **监控条**：文件修改 / 子代理 / todo 快照，5s 轮询
-- **工作区**：Git（status/diff/log）+ 文件浏览/预览双 tab 弹窗
-- **审批卡**：单选/批量单选/多选/输入，点选项只选中、点提交才发
-- **深浅主题**：浅色 Catppuccin Latte / 深色 One Dark Pro，对比度锁 WCAG AA 4.5
+- 聊天：看历史、发消息、流式回复，思考过程和工具调用都展开给你看
+- 会话：分组列表，重命名、复制、克隆分支、重启、压缩、导出都在手机上能点
+- 审批：桌面端弹确认框（比如"继续吗"）时，手机上直接选
+- 工作区：顺手看一眼 Git 改了啥、项目里有哪些文件
+- 两套主题：浅色 / 深色，抽屉底下切换
 
-## 快速开始
+## 上手
+
+1. 电脑上打开 PiDeck 的配对二维码
+2. 手机 APP 扫码（同一 Wi-Fi 下就行）
+3. 进场就是聊天，不用再找会话
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-配对：在 PiDeck 桌面端打开配对二维码，APP 内扫码即可（局域网 Base URL 如
-`http://192.168.1.100:8765`，缺端口默认 8765）。
-
-## 接口契约
-
-见 [`docs/api-contract.md`](docs/api-contract.md)（唯一真相源，改接口先改它）。
-
-## 构建与验证
+## 自己打包
 
 ```bash
-flutter analyze        # 必须干净
-flutter test           # 全量测试
 flutter build apk --release
 ```
 
-产物：`build/app/outputs/flutter-apk/app-release.apk`。
+包在 `build/app/outputs/flutter-apk/app-release.apk`。
 
-Release 签名：`android/key.properties` + keystore 均已 gitignore，
-照 `android/key.properties.example` 配好后 `flutter build apk --release` 自动签名；
-无签名文件时 debug key 自动兜底（见 `android/app/build.gradle.kts`）。
+想打正式签名就按 `android/key.properties.example` 配一下，不配也能打（能装，但和正式包互相覆盖不了）。
 
-## 发版（GitHub Actions 云打包）
+## 跟桌面端怎么对接
 
-打 tag 即发版，Actions 自动跑 analyze + test + 打包，APK 挂到 GitHub Release 下：
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0     # 走 SSH，HTTPS 写通道不通
-```
-
-正式签名（与本地包覆盖安装兼容）需先在仓库 Settings → Secrets 配四个值：
-
-| Secret | 内容 |
-|---|---|
-| `KEYSTORE_BASE64` | keystore 转 base64（命令见下） |
-| `KEY_ALIAS` | 如 `pideck` |
-| `KEY_PASSWORD` | key 口令 |
-| `STORE_PASSWORD` | store 口令 |
-
-```bash
-# 本机把 keystore 转 base64（换成你的实际路径），输出贴进 KEYSTORE_BASE64
-certutil -encode android/keystore/pideck-release.jks %TEMP%\ks.b64 && type %TEMP%\ks.b64
-```
-
-缺 Secrets 时 Actions 降级打出 debug 签名包：能装，但与正式版签名不一致、
-不可覆盖安装（需卸载重装）。
+看 [`docs/api-contract.md`](docs/api-contract.md)。
 
 ## License
 
-MIT，见 [LICENSE](LICENSE)。
+MIT
