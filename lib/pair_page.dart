@@ -78,12 +78,13 @@ class _PairPageState extends State<PairPage> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade700,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onError),
                       ),
                     ),
                   ),

@@ -47,7 +47,10 @@ class ApiClient {
   Future<Map<String, dynamic>> _getJson(String path, {Map<String, String>? query}) async {
     late final http.Response res;
     try {
-      res = await _client.get(_uri(path, query), headers: _headers);
+      // 连接/读双超时：切后台断网回来时连接挂住，不让请求无限 hang 住 UI。
+      res = await _client
+          .get(_uri(path, query), headers: _headers)
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw ApiException('无法连接服务：$e');
     }
@@ -60,11 +63,13 @@ class ApiClient {
   ) async {
     late final http.Response res;
     try {
-      res = await _client.post(
-        _uri(path),
-        headers: {..._headers, 'content-type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      res = await _client
+          .post(
+            _uri(path),
+            headers: {..._headers, 'content-type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       throw ApiException('无法连接服务：$e');
     }
@@ -73,11 +78,13 @@ class ApiClient {
 
   Future<http.Response> _rawPost(String path, Map<String, dynamic> body) async {
     try {
-      return await _client.post(
-        _uri(path),
-        headers: {..._headers, 'content-type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      return await _client
+          .post(
+            _uri(path),
+            headers: {..._headers, 'content-type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       throw ApiException('无法连接服务：$e');
     }

@@ -72,9 +72,18 @@ void main() {
     // 浅色 secondary（新增徽标色，配浅底）。
     expect(ratio(light.secondary, light.surface),
         greaterThanOrEqualTo(4.5));
+    // 浅色 tertiary（用量环警告态，配浅底）。
+    expect(ratio(light.tertiary, light.surface),
+        greaterThanOrEqualTo(4.5));
+    // 浅色按钮白字（配警告底）。
+    expect(ratio(light.onTertiary, light.tertiary),
+        greaterThanOrEqualTo(4.5));
     final dark = buildDarkTheme().colorScheme;
     // 深色报错字（配深底）。
     expect(ratio(dark.error, dark.surface),
+        greaterThanOrEqualTo(4.5));
+    // 深色 tertiary（用量环警告态，配深底）。
+    expect(ratio(dark.tertiary, dark.surface),
         greaterThanOrEqualTo(4.5));
   });
 }

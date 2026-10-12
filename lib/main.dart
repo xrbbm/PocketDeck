@@ -21,6 +21,7 @@ ThemeData buildLightTheme() {
   const bubble = Color(0xFFCCD0DA);
   const blue = Color(0xFF0B57D0);
   const teal = Color(0xFF0E7377);
+  const warn = Color(0xFFB54708);
   const red = Color(0xFFD20F39);
   return ThemeData(
     brightness: Brightness.light,
@@ -28,6 +29,8 @@ ThemeData buildLightTheme() {
       primary: blue,
       onPrimary: Colors.white,
       secondary: teal,
+      tertiary: warn,
+      onTertiary: Colors.white,
       tertiaryContainer: mantle,
       onTertiaryContainer: text,
       primaryContainer: bubble,
@@ -54,6 +57,7 @@ ThemeData buildDarkTheme() {
   const onBubble = Colors.white;
   const blue = Color(0xFF61AFEF);
   const cyan = Color(0xFF56B6C2);
+  const warn = Color(0xFFF5B841);
   const red = Color(0xFFE57A7D);
   return ThemeData(
     brightness: Brightness.dark,
@@ -61,6 +65,8 @@ ThemeData buildDarkTheme() {
       primary: blue,
       onPrimary: bg,
       secondary: cyan,
+      tertiary: warn,
+      onTertiary: bg,
       tertiaryContainer: panel,
       onTertiaryContainer: fg,
       primaryContainer: bubble,

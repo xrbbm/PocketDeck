@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -54,6 +55,27 @@ const kThinkingLevelFallback = [
   'max',
 ];
 
+/// 后台 isolate 图片解码+缩放（compute 回调必须是顶层函数）：
+/// 长边压到 1600 后转 JPEG 82，失败回 null（调用方回退原图直传）。
+/// 公开供单测锁死缩放语义，页面内经 compute 调用（不占 UI 线程）。
+Uint8List? decodeResizeJpg(List<int> raw) {
+  try {
+    final decoded = img.decodeImage(Uint8List.fromList(raw));
+    if (decoded == null) return null;
+    const maxSide = 1600;
+    final longest =
+        decoded.width > decoded.height ? decoded.width : decoded.height;
+    final out = longest > maxSide
+        ? img.copyResize(decoded,
+            width: decoded.width >= decoded.height ? maxSide : null,
+            height: decoded.width >= decoded.height ? null : maxSide)
+        : decoded;
+    return img.encodeJpg(out, quality: 82);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 输入草稿箱（进程级内存）：切会话重建 ChatPage 时，打一半的字不丢。
 /// key=sessionId，value=(正文, 附件dataURL)。发送成功/删会话即清。
 class ChatDraftBox {
@@ -63,10 +85,12 @@ class ChatDraftBox {
   static void dropFor(String sessionId) => box.remove(sessionId);
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final _messages = <UiMessage>[];
   final _scroll = ScrollController();
   final _input = TextEditingController();
+  // 回到底部小箭头：只在用户上滑看历史（离底部>160px）时出现。
+  bool _showJump = false;
   int? _nextBefore;
   bool _hasMore = false;
   bool _loading = true;
@@ -141,6 +165,8 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scroll.addListener(_trackScroll);
     // 切回来恢复草稿（本轮没发出去的字）。
     final saved = ChatDraftBox.box[widget.session.id];
     if (saved != null) {
@@ -160,6 +186,34 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 后台切回：SSE/轮询在后台会被系统挂起，回来时不断流，
+    // 强制刷一次 state 追上服务端进度（不断流、不重建订阅）。
+    if (state == AppLifecycleState.resumed) {
+      _pollState(force: true);
+    }
+  }
+
+  /// 滚动位置跟踪：离底部>160px 才亮小箭头（阈值>跟随阈值120，避免闪烁）。
+  void _trackScroll() {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    if (pos.maxScrollExtent <= 0) return;
+    final show = pos.pixels < pos.maxScrollExtent - 160;
+    if (show != _showJump && mounted) setState(() => _showJump = show);
+  }
+
+  /// 点小箭头：平滑滚到底（300ms easeOut），不跳帧。
+  void _smoothToBottom() {
+    if (!_scroll.hasClients) return;
+    _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
   void dispose() {
     // 没发出去的字留进草稿箱（空草稿清掉，不占着）。
     final text = _input.text;
@@ -171,6 +225,8 @@ class _ChatPageState extends State<ChatPage> {
     }
     _askPoller?.cancel();
     _streamSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _scroll.removeListener(_trackScroll);
     _scroll.dispose();
     _input.dispose();
     // inline 编辑行 controller 同页级持有，切会话重建堆一次漏一个。
@@ -485,10 +541,12 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   /// 流式中如果用户本来就贴着底部，跟随滚动；否则不动（不打断看历史）。
+  /// 跟随时顺带灭小箭头（已经到底了，箭头该消失）。
   void _stickToBottom() {
     if (!_scroll.hasClients) return;
     final pos = _scroll.position;
     if (pos.pixels >= pos.maxScrollExtent - 120) {
+      if (_showJump && mounted) setState(() => _showJump = false);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) {
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -537,7 +595,7 @@ class _ChatPageState extends State<ChatPage> {
       for (final f in files) {
         final raw = await f.readAsBytes();
         final mime = f.mimeType ?? _guessMime(f.name);
-        final url = _compressDataUrl(raw, mime);
+        final url = await _compressDataUrlAsync(raw, mime);
         // base64 体积 ≈ 原字节 4/3：按 2MB 上限卡。
         if ((url.length * 3) ~/ 4 > 2 * 1024 * 1024) {
           dropped++;
@@ -568,9 +626,9 @@ class _ChatPageState extends State<ChatPage> {
     return 'image/jpeg';
   }
 
-  /// 图片本地压缩：小图（≤2MB）原样直传，大图才解码→长边 1600→JPEG 82。
-  /// 动图（gif/webp）不压（压了变静态首帧），失败回退原图。
-  String _compressDataUrl(List<int> raw, String mime) {
+  /// 图片本地压缩：小图（≤2MB）/动图（gif/webp）原样直传，大图才解码。
+  /// 主线程解码大图会掉帧：包一层 compute 扔后台 isolate（首帧慢半拍，不卡 UI）。
+  Future<String> _compressDataUrlAsync(List<int> raw, String mime) async {
     if (raw.length <= 2 * 1024 * 1024) {
       return 'data:$mime;base64,${base64Encode(raw)}';
     }
@@ -579,17 +637,9 @@ class _ChatPageState extends State<ChatPage> {
       return 'data:$mime;base64,${base64Encode(raw)}';
     }
     try {
-      final decoded = img.decodeImage(Uint8List.fromList(raw));
-      if (decoded == null) return 'data:$mime;base64,${base64Encode(raw)}';
-      const maxSide = 1600;
-      final longest =
-          decoded.width > decoded.height ? decoded.width : decoded.height;
-      final out = longest > maxSide
-          ? img.copyResize(decoded,
-              width: decoded.width >= decoded.height ? maxSide : null,
-              height: decoded.width >= decoded.height ? null : maxSide)
-          : decoded;
-      return 'data:image/jpeg;base64,${base64Encode(img.encodeJpg(out, quality: 82))}';
+      final out = await compute(decodeResizeJpg, raw);
+      if (out == null) return 'data:$mime;base64,${base64Encode(raw)}';
+      return 'data:image/jpeg;base64,${base64Encode(out)}';
     } catch (_) {
       return 'data:$mime;base64,${base64Encode(raw)}';
     }
@@ -1170,6 +1220,21 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                       ],
                     ),
+      // 回到底部小箭头：只在离底部>160px 时出现（_trackScroll 控制），
+      // 点后 300ms 平滑滚到底；到底/跟随滚动时自动消失。
+      floatingActionButton: AnimatedScale(
+        scale: _showJump ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: _showJump
+            ? FloatingActionButton.small(
+                onPressed: _smoothToBottom,
+                tooltip: '回到底部',
+                child: const Icon(Icons.arrow_downward),
+              )
+            : const SizedBox.shrink(),
+      ),
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -1377,7 +1442,7 @@ class _ActivityStripsState extends State<_ActivityStrips> {
                               : Icons.circle_outlined,
                           size: 14,
                           color: item.completed
-                              ? Colors.green
+                              ? Theme.of(context).colorScheme.secondary
                               : item.inProgress
                                   ? Theme.of(context).colorScheme.primary
                                   : Theme.of(context).colorScheme.outline,
@@ -1492,11 +1557,11 @@ class _SubagentRowState extends State<_SubagentRow> {
   Color _statusColor(String status, BuildContext context) {
     switch (status) {
       case 'running':
-        return Colors.lightBlue;
+        return Theme.of(context).colorScheme.primary;
       case 'completed':
-        return Colors.green;
+        return Theme.of(context).colorScheme.secondary;
       case 'steered':
-        return Colors.orange;
+        return Theme.of(context).colorScheme.tertiary;
       case 'error':
         return Theme.of(context).colorScheme.error;
       default:
@@ -2058,8 +2123,7 @@ class _Composer extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   const Spacer(),
-                  // 流式中发送键变为中断键（abort 丢弃未完成回合）。
-                  // 空态禁用 + 压缩忙时禁用（对齐网页 submit/busy 语义）。
+                  // 发送键动效：流式↔空闲切换图标时做缩放过渡（发送/中断不跳变）。
                   IconButton.filled(
                     onPressed: streaming
                         ? onStop
@@ -2068,9 +2132,17 @@ class _Composer extends StatelessWidget {
                                     attachments.isEmpty)
                             ? null
                             : onSend),
-                    icon: streaming
-                        ? const Icon(Icons.stop)
-                        : const Icon(Icons.send),
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) => ScaleTransition(
+                        scale: anim,
+                        child: child,
+                      ),
+                      child: Icon(
+                        streaming ? Icons.stop : Icons.send,
+                        key: ValueKey(streaming ? 'stop' : 'send'),
+                      ),
+                    ),
                     tooltip: streaming ? '中断' : '发送',
                   ),
                 ],

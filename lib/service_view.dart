@@ -140,10 +140,15 @@ class _ReconnectView extends StatelessWidget {
             const SizedBox(height: 16),
             const Text('无法连接服务', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
-            Text(baseUrl, style: const TextStyle(color: Colors.grey)),
+            Text(baseUrl,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
             if (errorText.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(errorText, style: const TextStyle(color: Colors.grey)),
+              Text(errorText,
+                  style: TextStyle(
+                      color:
+                          Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
             const SizedBox(height: 8),
             const Text('电脑 IP 变化或不在同一 Wi-Fi 时，请用右上角按钮重新扫码配对'),
