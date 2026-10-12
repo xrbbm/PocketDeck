@@ -51,7 +51,8 @@ android/key.properties
 # ---- PocketDeck: local-only, never commit ----
 # (AGENTS.md in repo root is the sanitized public edition; internal notes live in ../pideck-aa-local/)
 # local verification screenshots (~10MB, kept in ../pideck-aa-local/screenshots/)
-*.png
+# NOTE: scoped to root only — android launcher icons (*.png under res/) must stay tracked.
+/*.png
 # upstream web reference snapshot (kept in ../pideck-aa-local/web-snapshot/)
 .tmp-pideck-web/
 # internal API contract draft (public contract lives in docs/)
