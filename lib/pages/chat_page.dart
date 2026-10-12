@@ -1201,6 +1201,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         _Composer(
                           controller: _input,
                           streaming: _streaming,
+                          showJump: _showJump,
+                          onJumpToBottom: _smoothToBottom,
                           modelLabel: _modelName,
                           thinkingLevel: _thinkingLevel,
                           planMode: _planMode,
@@ -1220,21 +1222,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         ),
                       ],
                     ),
-      // 回到底部小箭头：只在离底部>160px 时出现（_trackScroll 控制），
-      // 点后 300ms 平滑滚到底；到底/跟随滚动时自动消失。
-      floatingActionButton: AnimatedScale(
-        scale: _showJump ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: _showJump
-            ? FloatingActionButton.small(
-                onPressed: _smoothToBottom,
-                tooltip: '回到底部',
-                child: const Icon(Icons.arrow_downward),
-              )
-            : const SizedBox.shrink(),
-      ),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -1973,6 +1960,8 @@ class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
     required this.streaming,
+    required this.showJump,
+    required this.onJumpToBottom,
     required this.modelLabel,
     required this.thinkingLevel,
     required this.planMode,
@@ -1991,6 +1980,10 @@ class _Composer extends StatelessWidget {
 
   final TextEditingController controller;
   final bool streaming;
+  // 回到底部箭头：离底部>160px 才亮（_trackScroll 控制），收进输入框
+  // 上行、跟发送键并排，不再悬浮压住下行的计划 chip。
+  final bool showJump;
+  final VoidCallback onJumpToBottom;
   final String modelLabel;
   final String? thinkingLevel;
   final bool planMode;
@@ -2123,6 +2116,21 @@ class _Composer extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   const Spacer(),
+                  // 回到底部：只在离底部>160px 时出现，点后 300ms 平滑滚到底。
+                  // 跟发送键并排，中间留 12px，不贴太近。
+                  AnimatedScale(
+                    scale: showJump ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: showJump
+                        ? IconButton(
+                            onPressed: onJumpToBottom,
+                            icon: const Icon(Icons.arrow_downward),
+                            tooltip: '回到底部',
+                            visualDensity: VisualDensity.compact,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  if (showJump) const SizedBox(width: 12),
                   // 发送键动效：流式↔空闲切换图标时做缩放过渡（发送/中断不跳变）。
                   IconButton.filled(
                     onPressed: streaming
