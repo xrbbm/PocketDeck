@@ -2073,20 +2073,35 @@ class _Composer extends StatelessWidget {
                     ),
                   ),
                 ),
-              TextField(
-                controller: controller,
-                // 对齐网页 min-h 7rem：起步3行高度，窄屏不瘪。
-                minLines: 3,
-                maxLines: 5,
-                textInputAction: TextInputAction.send,
-                // 空态/忙时 onSend 内部守（发送键同时禁用，双保险）。
-                onSubmitted: (_) => onSend(),
-                onChanged: (_) => onChanged(),
-                decoration: InputDecoration(
-                  hintText:
-                      planMode ? '描述需求，先出计划（只读分析）' : '发送消息到当前会话',
-                  border: InputBorder.none,
-                ),
+              // 默认占屏高 1/4（原来 3 行约 1/3 偏大），字多了自动长到
+              // 1/2 封顶、之后内部滚动。chrome 是工具区双行+边距的固定开销。
+              LayoutBuilder(
+                builder: (context, cons) {
+                  final screenH = MediaQuery.of(context).size.height;
+                  const chrome = 170.0;
+                  final minH = (screenH / 4 - chrome).clamp(60.0, 220.0);
+                  final maxH = (screenH / 2 - chrome).clamp(160.0, 480.0);
+                  return ConstrainedBox(
+                    constraints:
+                        BoxConstraints(minHeight: minH, maxHeight: maxH),
+                    child: TextField(
+                      controller: controller,
+                      minLines: null,
+                      maxLines: null,
+                      expands: false,
+                      textInputAction: TextInputAction.send,
+                      // 空态/忙时 onSend 内部守（发送键同时禁用，双保险）。
+                      onSubmitted: (_) => onSend(),
+                      onChanged: (_) => onChanged(),
+                      decoration: InputDecoration(
+                        hintText: planMode
+                            ? '描述需求，先出计划（只读分析）'
+                            : '发送消息到当前会话',
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  );
+                },
               ),
               // 工具区双行（对齐例图）：上行左图库+提示词、右发送；
               // 下行左思考+模型横滑、右计划。
