@@ -30,13 +30,16 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Gate() }
+        // Debug/simulator shortcut: `am start -e pair_url http://host:8765`
+        // writes pairing directly (bypasses QR/manual input for testing).
+        val debugUrl = intent?.getStringExtra("pair_url")
+        setContent { Gate(debugUrl) }
     }
 }
 
 /** Startup gate: no pairing -> scan page; paired -> drawer shell. */
 @Composable
-private fun Gate() {
+private fun Gate(debugUrl: String? = null) {
     val context = LocalContext.current
     val store = remember { PairingStore(context) }
     val scope = rememberCoroutineScope()
@@ -45,7 +48,14 @@ private fun Gate() {
     var dark by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        pairing = store.load()
+        val parsed = debugUrl?.let(com.xrbbm.pideck.core.PairingParser::parseBaseUrl)
+        if (parsed != null) {
+            val next = Pairing(baseUrl = parsed)
+            store.save(next)
+            pairing = next
+        } else {
+            pairing = store.load()
+        }
         dark = store.loadDarkTheme()
         loading = false
     }
