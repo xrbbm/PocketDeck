@@ -213,22 +213,28 @@ fun ActivityStrips(
  */
 @Composable
 fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifier) {
-    var changes by remember(sessionId) { mutableStateOf(0) }
-    var subagents by remember(sessionId) { mutableStateOf(0) }
-    var todos by remember(sessionId) { mutableStateOf(0) }
+    var changeList by remember(sessionId) {
+        mutableStateOf<List<SessionFileChange>>(emptyList())
+    }
+    var subagentList by remember(sessionId) {
+        mutableStateOf<List<SubagentEntry>>(emptyList())
+    }
+    var todoSnap by remember(sessionId) {
+        mutableStateOf<SessionTodoSnapshot?>(null)
+    }
     var open by remember(sessionId) { mutableStateOf<String?>(null) }
 
     suspend fun load() {
         try {
-            changes = api.fetchSessionFileChanges(sessionId).size
+            changeList = api.fetchSessionFileChanges(sessionId)
         } catch (_: Exception) {
         }
         try {
-            subagents = api.fetchSessionSubagents(sessionId).size
+            subagentList = api.fetchSessionSubagents(sessionId)
         } catch (_: Exception) {
         }
         try {
-            todos = api.fetchSessionTodo(sessionId)?.todos?.size ?: 0
+            todoSnap = api.fetchSessionTodo(sessionId)
         } catch (_: Exception) {
         }
     }
@@ -241,46 +247,115 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
         }
     }
 
+    val todoList = todoSnap?.todos ?: emptyList()
+    // Single expanded section at a time; each expands its own children
+    // only (no nested ActivityStrips, no duplicated parent cards).
     val rows = buildList {
-        if (changes > 0) add(Triple("file", "📄", "文件修改 $changes"))
-        if (subagents > 0) add(Triple("sub", "✨", "子代理 $subagents"))
-        if (todos > 0) add(Triple("todo", "📋", "任务清单 $todos"))
+        if (changeList.isNotEmpty()) add("file")
+        if (subagentList.isNotEmpty()) add("sub")
+        if (todoList.isNotEmpty()) add("todo")
     }
     if (rows.isEmpty()) return
     Column(modifier.fillMaxWidth()) {
-        rows.forEach { (key, icon, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(
-                        onClick = { open = if (open == key) null else key },
-                        onLongClick = {},
-                    )
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        if ("file" in rows) {
+            PinnedRow(
+                icon = "📄",
+                label = "文件修改 ${changeList.size}",
+                expanded = open == "file",
+                onToggle = { open = if (open == "file") null else "file" },
             ) {
-                Text(icon, style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.padding(start = 8.dp))
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(if (open == key) "▾" else "▸")
-            }
-            if (open == key) {
-                // Reuse the full strip content for the expanded row.
-                Box(Modifier.fillMaxWidth()) {
-                    ActivityStrips(api = api, sessionId = sessionId)
+                changeList.take(30).forEach { c ->
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("${c.basename} ×${c.count}") },
+                    )
                 }
             }
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            )
         }
+        if ("sub" in rows) {
+            PinnedRow(
+                icon = "✨",
+                label = "子代理 ${subagentList.size}",
+                expanded = open == "sub",
+                onToggle = { open = if (open == "sub") null else "sub" },
+            ) {
+                subagentList.forEach { entry -> SubagentRow(entry = entry) }
+            }
+        }
+        if ("todo" in rows) {
+            PinnedRow(
+                icon = "📋",
+                label = "任务清单 ${todoList.size}",
+                expanded = open == "todo",
+                onToggle = { open = if (open == "todo") null else "todo" },
+            ) {
+                todoList.forEach { item ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            if (item.completed) "✅" else "○",
+                            color = if (item.completed) {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            },
+                        )
+                        Spacer(Modifier.padding(start = 6.dp))
+                        Text(
+                            item.text,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                textDecoration = if (item.completed) {
+                                    TextDecoration.LineThrough
+                                } else {
+                                    null
+                                },
+                            ),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Single pinned row: fixed header + inline children, no nested cards. */
+@Composable
+private fun PinnedRow(
+    icon: String,
+    label: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = onToggle, onLongClick = {})
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(icon, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.padding(start = 8.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(if (expanded) "▾" else "▸")
+        }
+        if (expanded) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                content()
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
     }
 }
 
