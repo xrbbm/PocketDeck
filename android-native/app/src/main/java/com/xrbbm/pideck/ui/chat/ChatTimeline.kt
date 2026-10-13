@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,12 +21,16 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -147,14 +152,7 @@ fun ChatTimeline(
             }
             if (messages.isEmpty() && unavailable == null && error == null) {
                 item(key = "empty") {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("暂无消息，发一句开始聊", style = MaterialTheme.typography.bodyMedium)
-                    }
+                    EmptyTimeline()
                 }
             }
             unavailable?.let { reason ->
@@ -228,10 +226,12 @@ fun ChatTimeline(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
         ) {
-            FloatingActionButton(
+            SmallFloatingActionButton(
                 onClick = {
                     scope.launch { listState.animateScrollToItem(messages.size - 1) }
                 },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
                 androidx.compose.material3.Icon(
                     Icons.Filled.ArrowDownward,
@@ -239,6 +239,32 @@ fun ChatTimeline(
                 )
             }
         }
+    }
+}
+
+// M3 signature bubble shapes: user sharp bottom-end, assistant sharp
+// bottom-start (chat-app convention, keeps text breathing room).
+private val UserBubbleShape = RoundedCornerShape(
+    topStart = 18.dp,
+    topEnd = 18.dp,
+    bottomStart = 18.dp,
+    bottomEnd = 4.dp,
+)
+private val AssistantBubbleShape = RoundedCornerShape(
+    topStart = 18.dp,
+    topEnd = 18.dp,
+    bottomStart = 4.dp,
+    bottomEnd = 18.dp,
+)
+
+/** Item entrance: fade + rise (skill motion guidance, 48dp-free list). */
+@Composable
+private fun ItemEntrance(content: @Composable () -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 }),
+    ) {
+        content()
     }
 }
 
@@ -258,28 +284,34 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
                     pressed = false
                 }
             }
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .widthIn(max = 320.dp)
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClick = { pressed = true },
+            ItemEntrance {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
-            ) {
-                Column(Modifier.padding(10.dp)) {
-                    message.parts.forEach { part ->
-                        when (part) {
-                            is UiPart.Text -> Text(
-                                part.text,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            is UiPart.File -> Text(
-                                "[图片 ${part.mimeType}]",
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            else -> Unit
+                    shape = UserBubbleShape,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier
+                        .widthIn(max = 320.dp)
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = { pressed = true },
+                        ),
+                ) {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        message.parts.forEach { part ->
+                            when (part) {
+                                is UiPart.Text -> Text(
+                                    part.text,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                is UiPart.File -> Text(
+                                    "[图片 ${part.mimeType}]",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                else -> Unit
+                            }
                         }
                     }
                 }
@@ -291,28 +323,63 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         message.parts.forEachIndexed { index, part ->
             when (part) {
-                is UiPart.Text -> Surface(
-                    tonalElevation = 1.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp)),
-                ) {
-                    Text(
-                        part.text,
-                        modifier = Modifier.padding(10.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                is UiPart.Text -> ItemEntrance {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor =
+                                MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                        shape = AssistantBubbleShape,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            part.text,
+                            modifier = Modifier.padding(
+                                horizontal = 14.dp,
+                                vertical = 10.dp,
+                            ),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 }
                 is UiPart.Reasoning -> ReasoningCard(text = part.text)
                 is UiPart.Tool -> FullToolCard(part = part)
                 is UiPart.File -> Unit
             }
         }
+    }
+}
+
+/** Illustrated empty state (skill: never leave a bare hint line). */
+@Composable
+private fun EmptyTimeline() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(72.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text("💬", style = MaterialTheme.typography.headlineMedium)
+            }
+        }
+        Text("开始新的对话", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "发一句开始聊，思考与工具调用会一段段冒出来",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
