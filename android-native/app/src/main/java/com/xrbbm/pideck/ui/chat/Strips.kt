@@ -1,5 +1,6 @@
 package com.xrbbm.pideck.ui.chat
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
@@ -50,26 +52,34 @@ fun BranchBar(
     val family = remember(sessions, activeId) { deriveBranchFamily(sessions, activeId) }
     if (family.size <= 1) return
     val byId = remember(sessions) { sessions.associateBy { it.id } }
+    // M3: tonal container + SuggestionChip trail with check on active.
     Surface(
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("⑂", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            family.forEachIndexed { i, member ->
-                if (i > 0) {
-                    Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(28.dp),
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("⑂", style = MaterialTheme.typography.labelMedium)
                 }
+            }
+            family.forEachIndexed { i, member ->
                 val s = byId[member.id] ?: member
                 val active = s.id == activeId
-                FilterChip(
-                    selected = active,
+                androidx.compose.material3.SuggestionChip(
                     onClick = { if (!active) onSelect(s) },
                     label = {
                         Text(
@@ -78,7 +88,15 @@ fun BranchBar(
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
+                    icon = if (active) {
+                        { Text("✓", style = MaterialTheme.typography.labelSmall) }
+                    } else {
+                        null
+                    },
                 )
+                if (i < family.size - 1) {
+                    Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
@@ -194,15 +212,36 @@ private fun StripShell(
     content: @Composable () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth()) {
-        TextButton(
-            onClick = { open = !open },
-            modifier = Modifier.fillMaxWidth(),
+    // M3: OutlinedCard shell + Badge count + animated body.
+    androidx.compose.material3.OutlinedCard(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        androidx.compose.material3.ListItem(
+            headlineContent = { Text(title, style = MaterialTheme.typography.titleSmall) },
+            leadingContent = { Text(icon) },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Badge { Text("$count") }
+                    Spacer(Modifier.padding(start = 8.dp))
+                    Text(if (open) "▾" else "▸")
+                }
+            },
+            modifier = Modifier.combinedClickable(
+                onClick = { open = !open },
+                onLongClick = {},
+            ),
+        )
+        androidx.compose.animation.AnimatedVisibility(
+            visible = open,
+            enter = androidx.compose.animation.fadeIn() +
+                androidx.compose.animation.expandVertically(),
+            exit = androidx.compose.animation.fadeOut() +
+                androidx.compose.animation.shrinkVertically(),
         ) {
-            Text("$icon $title ($count) ${if (open) "▾" else "▸"}")
-        }
-        if (open) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 content()
             }
         }

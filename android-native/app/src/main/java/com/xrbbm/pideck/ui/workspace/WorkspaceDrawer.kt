@@ -1,6 +1,7 @@
 package com.xrbbm.pideck.ui.workspace
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,10 +9,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -182,9 +189,20 @@ private fun GitPanel(api: ApiClient, projectId: String) {
                 .fillMaxWidth()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("当前项目不是 Git 仓库")
-            TextButton(onClick = { scope.launch { load() } }) { Text("重试") }
+            Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.size(56.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("⑂", style = MaterialTheme.typography.headlineSmall) }
+            }
+            Text("当前项目不是 Git 仓库", style = MaterialTheme.typography.titleMedium)
+            FilledTonalButton(onClick = { scope.launch { load() } }) { Text("重试") }
         }
         loadError != null -> Column(
             Modifier
@@ -203,20 +221,32 @@ private fun GitPanel(api: ApiClient, projectId: String) {
         ) {
             branch?.current?.let { current ->
                 item(key = "branch") {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("⑂", style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.padding(start = 6.dp))
-                        Text(
-                            current,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "变更 ${groups?.total ?: 0}",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor =
+                                MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        ) {
+                            Text("⑂", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.padding(start = 8.dp))
+                            Text(
+                                current,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("变更 ${groups?.total ?: 0}") },
+                            )
+                        }
                     }
                 }
             }
