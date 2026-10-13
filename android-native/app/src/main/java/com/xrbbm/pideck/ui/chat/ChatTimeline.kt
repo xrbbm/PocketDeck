@@ -1,0 +1,424 @@
+package com.xrbbm.pideck.ui.chat
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import com.xrbbm.pideck.core.net.UiMessage
+import com.xrbbm.pideck.core.net.UiPart
+import com.xrbbm.pideck.core.net.groupToolMessages
+import com.xrbbm.pideck.core.net.prettyToolValue
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+/**
+ * Chat timeline: history paging (pull-up) + streaming segments in arrival
+ * order + jump-to-bottom arrow + inline error with retry/ignore.
+ *
+ * Mirrors Flutter ChatPage list behavior:
+ * - follow-scroll only while pinned near the bottom (>120px away = free)
+ * - arrow appears only when >160px from the bottom
+ * - history failures degrade inline; the input box stays alive (separate lane)
+ */
+@Composable
+fun ChatTimeline(
+    messages: List<UiMessage>,
+    loading: Boolean,
+    loadingMore: Boolean,
+    hasMore: Boolean,
+    error: String?,
+    unavailable: String?,
+    approvalSeq: Int,
+    streaming: Boolean,
+    onLoadMore: () -> Unit,
+    onRetry: () -> Unit,
+    onIgnoreError: () -> Unit,
+    onUserMessageLongPress: (UiMessage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Pinned to bottom while the user stays near it (120px follow window).
+    val pinned by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            if (total == 0) return@derivedStateOf true
+            val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
+            last.index >= total - 1 &&
+                last.offset + last.size <= info.viewportEndOffset + 120
+        }
+    }
+    val showJump by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            if (total == 0) return@derivedStateOf false
+            val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
+            !(last.index >= total - 1 &&
+                last.offset + last.size <= info.viewportEndOffset + 160)
+        }
+    }
+
+    // New messages / streaming deltas follow only when pinned.
+    LaunchedEffect(messages.size, streaming) {
+        if (pinned && messages.isNotEmpty()) {
+            listState.scrollToItem(messages.size - 1)
+        }
+    }
+    // New approval arrival always jumps (mirrors Flutter _jumpToBottom).
+    LaunchedEffect(approvalSeq) {
+        if (approvalSeq > 0 && messages.isNotEmpty()) {
+            listState.scrollToItem(messages.size - 1)
+        }
+    }
+    // Pull-up paging: reaching the top loads the next page.
+    LaunchedEffect(listState, hasMore) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collectLatest { (index, offset) ->
+                if (index == 0 && offset <= 0 && hasMore && !loading && !loadingMore) {
+                    onLoadMore()
+                }
+            }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        if (loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Box
+        }
+        val groups = remember(messages) { groupToolMessages(messages) }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (loadingMore) {
+                item(key = "paging") {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
+            }
+            if (messages.isEmpty() && unavailable == null && error == null) {
+                item(key = "empty") {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("暂无消息，发一句开始聊", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            unavailable?.let { reason ->
+                item(key = "unavailable") {
+                    Surface(
+                        tonalElevation = 2.dp,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("历史暂不可用（$reason）", style = MaterialTheme.typography.bodyMedium)
+                            Row {
+                                TextButton(onClick = onRetry) { Text("重试") }
+                                TextButton(onClick = onIgnoreError) { Text("忽略") }
+                            }
+                        }
+                    }
+                }
+            }
+            error?.let { msg ->
+                item(key = "error") {
+                    Surface(
+                        tonalElevation = 2.dp,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(msg, color = MaterialTheme.colorScheme.error)
+                            Row {
+                                TextButton(onClick = onRetry) { Text("重试") }
+                                TextButton(onClick = onIgnoreError) { Text("忽略") }
+                            }
+                        }
+                    }
+                }
+            }
+            groups.forEachIndexed { gi, group ->
+                if (group.size > 1) {
+                    item(key = "group-$gi-${group.first().id}") {
+                        ToolGroupCard(messages = group)
+                    }
+                } else {
+                    val m = group.first()
+                    item(key = m.id) {
+                        MessageRow(
+                            message = m,
+                            onUserLongPress = { onUserMessageLongPress(m) },
+                        )
+                    }
+                }
+            }
+            if (streaming) {
+                item(key = "streaming-tail") {
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = showJump,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    scope.launch { listState.animateScrollToItem(messages.size - 1) }
+                },
+            ) {
+                androidx.compose.material3.Icon(
+                    Icons.Filled.ArrowDownward,
+                    contentDescription = "回到底部",
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
+    if (message.isUser) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            var pressed by remember { mutableStateOf(false) }
+            if (pressed) {
+                LaunchedEffect(Unit) {
+                    onUserLongPress()
+                    pressed = false
+                }
+            }
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = { pressed = true },
+                    ),
+            ) {
+                Column(Modifier.padding(10.dp)) {
+                    message.parts.forEach { part ->
+                        when (part) {
+                            is UiPart.Text -> Text(
+                                part.text,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            is UiPart.File -> Text(
+                                "[图片 ${part.mimeType}]",
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        message.parts.forEachIndexed { index, part ->
+            when (part) {
+                is UiPart.Text -> Surface(
+                    tonalElevation = 1.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp)),
+                ) {
+                    Text(
+                        part.text,
+                        modifier = Modifier.padding(10.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                is UiPart.Reasoning -> ReasoningCard(text = part.text)
+                is UiPart.Tool -> ToolCard(part = part)
+                is UiPart.File -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReasoningCard(text: String) {
+    var expanded by remember { mutableStateOf(false) }
+    Surface(
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.combinedClickable(
+                    onClick = { expanded = !expanded },
+                    onLongClick = {},
+                ),
+            ) {
+                Text("💭 思考过程", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.weight(1f))
+                Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelSmall)
+            }
+            if (expanded) {
+                Spacer(Modifier.height(6.dp))
+                Text(text, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/** Placeholder: full ToolCard lands in step 5; timeline shows compact rows. */
+@Composable
+private fun ToolCard(part: UiPart.Tool) {
+    Surface(
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (part.streaming) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+                Text(
+                    "🔧 ${part.toolName}",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(start = if (part.streaming) 6.dp else 0.dp),
+                )
+                Spacer(Modifier.weight(1f))
+                if (part.isError) {
+                    Text("执行失败", color = MaterialTheme.colorScheme.error)
+                } else if (part.streaming) {
+                    Text("运行中", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            val summary = com.xrbbm.pideck.core.net.toolSummary(part)
+            if (summary.isNotEmpty()) {
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                )
+            }
+            val output = prettyToolValue(part.output)
+            if (output.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(output.take(400), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolGroupCard(messages: List<UiMessage>) {
+    var expanded by remember { mutableStateOf(false) }
+    val first = (messages.first().parts.firstOrNull() as? UiPart.Tool)
+    Surface(
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.combinedClickable(
+                    onClick = { expanded = !expanded },
+                    onLongClick = {},
+                ),
+            ) {
+                Text(
+                    "🔧 ${first?.toolName ?: "tool"} × ${messages.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelSmall)
+            }
+            if (expanded) {
+                Spacer(Modifier.height(6.dp))
+                messages.forEach { m ->
+                    (m.parts.firstOrNull() as? UiPart.Tool)?.let { ToolCard(part = it) }
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+        }
+    }
+}

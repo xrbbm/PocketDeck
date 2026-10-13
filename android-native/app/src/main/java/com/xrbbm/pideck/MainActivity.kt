@@ -20,7 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.xrbbm.pideck.core.Pairing
 import com.xrbbm.pideck.core.PairingStore
+import com.xrbbm.pideck.core.net.ApiClient
+import com.xrbbm.pideck.ui.chat.ChatScreen
 import com.xrbbm.pideck.ui.pair.PairScreen
+import com.xrbbm.pideck.ui.shell.ShellScreen
 import com.xrbbm.pideck.ui.theme.PiDeckTheme
 import kotlinx.coroutines.launch
 
@@ -31,10 +34,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * Startup gate: no pairing -> scan page; paired -> placeholder shell
- * (chat shell lands in step 4; step 2 only proves scan + persist + route).
- */
+/** Startup gate: no pairing -> scan page; paired -> drawer shell. */
 @Composable
 private fun Gate() {
     val context = LocalContext.current
@@ -64,10 +64,26 @@ private fun Gate() {
                     }
                 },
             )
-            else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    "已配对 ${pairing!!.baseUrl}\n聊天壳在第 4 步接入",
-                    style = MaterialTheme.typography.bodyMedium,
+            else -> {
+                val api = remember(pairing!!.baseUrl) {
+                    ApiClient(Pairing(pairing!!.baseUrl, pairing!!.token))
+                }
+                ShellScreen(
+                    api = api,
+                    pairing = pairing!!,
+                    isDark = dark,
+                    onToggleTheme = {
+                        scope.launch {
+                            store.saveDarkTheme(!dark)
+                            dark = !dark
+                        }
+                    },
+                    onUnpair = {
+                        scope.launch {
+                            store.clear()
+                            pairing = null
+                        }
+                    },
                 )
             }
         }
