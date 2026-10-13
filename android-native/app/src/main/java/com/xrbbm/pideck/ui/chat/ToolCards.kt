@@ -157,64 +157,6 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
     }
 }
 
-/** Grouped same-name tool calls (e.g. read × 4). */
-@Composable
-fun FullToolGroupCard(
-    toolName: String,
-    parts: List<UiPart.Tool>,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.elevatedCardColors(),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(onClick = { expanded = !expanded }, onLongClick = {})
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Icon(
-                    AppIcons.Wrench,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.padding(start = 8.dp))
-                Text(
-                    "$toolName × ${parts.size}",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    if (expanded) "收起" else "展开",
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
-            ) {
-                Column(
-                    Modifier.padding(horizontal = 8.dp),
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-                ) {
-                    parts.forEach { FullToolCard(part = it) }
-                    Spacer(Modifier.height(4.dp))
-                }
-            }
-        }
-    }
-}
-
 /** Monospace value block: FilledTonal surface + label chip. */
 @Composable
 private fun ValueBlock(label: String, text: String, isError: Boolean = false) {

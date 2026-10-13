@@ -51,7 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.UiMessage
 import com.xrbbm.pideck.core.net.UiPart
-import com.xrbbm.pideck.core.net.groupToolMessages
+
 import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -135,7 +135,10 @@ fun ChatTimeline(
             }
             return@Box
         }
-        val groups = remember(messages) { groupToolMessages(messages) }
+        // Web 1:1 execution grouping: consecutive assistant tool/reasoning
+        // messages fold into one ExecutionCard (no same-tool merging).
+        // User text always breaks the run (mirrors web timeline).
+        val blocks = remember(messages) { splitExecutionBlocks(messages) }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -196,22 +199,21 @@ fun ChatTimeline(
                     }
                 }
             }
-            groups.forEachIndexed { gi, group ->
-                if (group.size > 1) {
-                    val tools = group.mapNotNull {
-                        it.parts.firstOrNull() as? UiPart.Tool
+            blocks.forEachIndexed { bi, block ->
+                when (block) {
+                    is TimelineBlock.Single -> {
+                        val m = block.message
+                        item(key = m.id) {
+                            MessageRow(
+                                message = m,
+                                onUserLongPress = { onUserMessageLongPress(m) },
+                            )
+                        }
                     }
-                    val name = (tools.firstOrNull()?.toolName) ?: "tool"
-                    item(key = "group-$gi-${group.first().id}") {
-                        FullToolGroupCard(toolName = name, parts = tools)
-                    }
-                } else {
-                    val m = group.first()
-                    item(key = m.id) {
-                        MessageRow(
-                            message = m,
-                            onUserLongPress = { onUserMessageLongPress(m) },
-                        )
+                    is TimelineBlock.Execution -> {
+                        item(key = "exec-$bi-${block.messages.first().id}") {
+                            ExecutionCard(messages = block.messages)
+                        }
                     }
                 }
             }
@@ -241,6 +243,241 @@ fun ChatTimeline(
                     contentDescription = "回到底部",
                 )
             }
+        }
+    }
+}
+
+/**
+ * Timeline segmentation (web 1:1): consecutive assistant tool/reasoning
+ * messages form one execution block; user text or plain assistant text
+ * breaks it. Only three card levels: execution -> entry -> content.
+ */
+sealed interface TimelineBlock {
+    data class Single(val message: UiMessage) : TimelineBlock
+    data class Execution(val messages: List<UiMessage>) : TimelineBlock
+}
+
+private fun isExecutionMessage(m: UiMessage): Boolean {
+    if (m.isUser) return false
+    if (m.parts.isEmpty()) return false
+    return m.parts.all { it is UiPart.Tool || it is UiPart.Reasoning }
+}
+
+fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {
+    val out = mutableListOf<TimelineBlock>()
+    var run = mutableListOf<UiMessage>()
+    fun flush() {
+        if (run.isNotEmpty()) {
+            out.add(TimelineBlock.Execution(run.toList()))
+            run = mutableListOf()
+        }
+    }
+    for (m in messages) {
+        if (isExecutionMessage(m)) {
+            run.add(m)
+        } else {
+            flush()
+            out.add(TimelineBlock.Single(m))
+        }
+    }
+    flush()
+    return out
+}
+
+/**
+ * L1 execution card (web screenshot 1): header with tool/reasoning
+ * counts + collapse, entries as L2 rows, each expanding its L3 content.
+ */
+@Composable
+fun ExecutionCard(messages: List<UiMessage>, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(true) }
+    var toolCount = 0
+    var thinkCount = 0
+    for (m in messages) {
+        for (p in m.parts) {
+            when (p) {
+                is UiPart.Tool -> toolCount++
+                is UiPart.Reasoning -> thinkCount++
+                else -> Unit
+            }
+        }
+    }
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+    ) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(onClick = { expanded = !expanded }, onLongClick = {})
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Icon(
+                    if (expanded) AppIcons.ChevronDown else AppIcons.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    AppIcons.Run,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("执行过程", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.width(8.dp))
+                if (toolCount > 0) {
+                    Icon(
+                        AppIcons.Wrench,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        "$toolCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                if (thinkCount > 0) {
+                    Icon(
+                        AppIcons.Brain,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        "$thinkCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Column(
+                    Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    for (m in messages) {
+                        for (p in m.parts) {
+                            when (p) {
+                                is UiPart.Tool -> ExecutionToolRow(part = p)
+                                is UiPart.Reasoning -> ExecutionThinkRow(text = p.text)
+                                else -> Unit
+                            }
+                        }
+                    }
+                    TextButton(onClick = { expanded = false }) { Text("收起") }
+                }
+            }
+        }
+    }
+}
+
+/** L2 tool entry row: icon + name + chevron, expands L3 input/output. */
+@Composable
+private fun ExecutionToolRow(part: UiPart.Tool) {
+    var open by remember(part.callId) { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = { open = !open }, onLongClick = {})
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        ) {
+            Icon(
+                if (part.isError) AppIcons.ToolError else AppIcons.Wrench,
+                contentDescription = null,
+                tint = if (part.isError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.secondary
+                },
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                part.toolName,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Icon(
+                if (open) AppIcons.ChevronDown else AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (open) {
+            FullToolCard(part = part)
+        }
+    }
+}
+
+/** L2 thinking entry row: icon + summary + chevron, expands L3 text. */
+@Composable
+private fun ExecutionThinkRow(text: String) {
+    var open by remember(text.hashCode()) { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = { open = !open }, onLongClick = {})
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        ) {
+            Icon(
+                AppIcons.Brain,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "思考",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text.take(40),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(2f),
+            )
+            Icon(
+                if (open) AppIcons.ChevronDown else AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (open) {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+            )
         }
     }
 }

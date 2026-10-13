@@ -177,47 +177,6 @@ fun mapChatMessage(m: JsonObject): UiMessage {
     return UiMessage(id, if (role == "user") "user" else "assistant", parts)
 }
 
-/** Group consecutive same-name tool runs inside one message's parts. */
-fun groupToolRuns(parts: List<UiPart>): List<List<UiPart>> {
-    val runs = mutableListOf<MutableList<UiPart>>()
-    for (p in parts) {
-        if (p is UiPart.Tool && runs.isNotEmpty()) {
-            val last = runs.last()
-            if (last.isNotEmpty() && last.first() is UiPart.Tool &&
-                (last.first() as UiPart.Tool).toolName == p.toolName
-            ) {
-                last.add(p)
-                continue
-            }
-        }
-        runs.add(mutableListOf(p))
-    }
-    return runs
-}
-
-/** Merge adjacent single-tool assistant messages of the same tool. */
-fun groupToolMessages(messages: List<UiMessage>): List<List<UiMessage>> {
-    fun singleTool(m: UiMessage): UiPart.Tool? =
-        if (!m.isUser && m.parts.size == 1 && m.parts.first() is UiPart.Tool) {
-            m.parts.first() as UiPart.Tool
-        } else {
-            null
-        }
-    val runs = mutableListOf<MutableList<UiMessage>>()
-    for (m in messages) {
-        val tool = singleTool(m)
-        if (tool != null && runs.isNotEmpty()) {
-            val firstTool = singleTool(runs.last().first())
-            if (firstTool != null && firstTool.toolName == tool.toolName) {
-                runs.last().add(m)
-                continue
-            }
-        }
-        runs.add(mutableListOf(m))
-    }
-    return runs
-}
-
 fun batchAnswerLabel(value: kotlinx.serialization.json.JsonElement?): String {
     if (value == null || value is JsonNull) return ""
     if (value is JsonPrimitive) {
