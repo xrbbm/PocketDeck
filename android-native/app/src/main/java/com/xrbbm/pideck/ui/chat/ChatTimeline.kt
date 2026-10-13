@@ -287,8 +287,8 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
             ItemEntrance {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                     shape = UserBubbleShape,
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
