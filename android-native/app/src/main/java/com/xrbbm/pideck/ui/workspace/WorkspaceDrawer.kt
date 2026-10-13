@@ -83,9 +83,17 @@ fun WorkspaceDrawer(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Git") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("文件") })
+            // Segmented switch instead of TabRow: TabRow taps go missing
+            // inside ModalBottomSheet on the MuMu simulator (no Pager to sync).
+            Row(Modifier.fillMaxWidth()) {
+                TextButton(
+                    onClick = { tab = 0 },
+                    modifier = Modifier.weight(1f),
+                ) { Text(if (tab == 0) "● Git" else "Git") }
+                TextButton(
+                    onClick = { tab = 1 },
+                    modifier = Modifier.weight(1f),
+                ) { Text(if (tab == 1) "● 文件" else "文件") }
             }
             if (tab == 0) {
                 GitPanel(api = api, projectId = projectId)
