@@ -151,13 +151,15 @@ fun SessionsDrawer(
                     }
                 }
             } else {
+                // Web 1:1 (screenshot 2): flat project rows, no group cards.
+                // groups[] order = Chat pinned + projects; each row shows
+                // ▷ name, right + (new) and trash only on hover-equivalent.
                 groups.forEach { g ->
                     item(key = "header-${g.id}") {
                         var open by remember(g.id, query) {
-                            mutableStateOf(g.isChat || query.trim().isNotEmpty())
+                            mutableStateOf(true)
                         }
                         Column {
-                            // M3 group header: tonal icon + title + count badge.
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -165,30 +167,27 @@ fun SessionsDrawer(
                                         onClick = { open = !open },
                                         onLongClick = {},
                                     )
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Surface(
-                                    shape = androidx.compose.foundation.shape.CircleShape,
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    androidx.compose.foundation.layout.Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text(if (g.isChat) "💬" else "📁")
-                                    }
-                                }
-                                Spacer(Modifier.padding(start = 10.dp))
+                                Text(
+                                    if (open) "▽" else "▷",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.padding(start = 6.dp))
                                 Text(
                                     g.title,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
-                                androidx.compose.material3.Badge {
-                                    Text("${g.sessions.size}")
-                                }
+                                IconButton(
+                                    onClick = onNewSession,
+                                    enabled = state != null,
+                                    modifier = Modifier.size(32.dp),
+                                ) { Text("+") }
                             }
                             AnimatedVisibility(
                                 visible = open,
@@ -215,26 +214,26 @@ fun SessionsDrawer(
             }
         }
         HorizontalDivider()
-        FilledTonalButton(
-            onClick = onNewSession,
-            enabled = state != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        ) { Text("+ 新会话") }
+        // Web 1:1 bottom: online dot + connected label (screenshot 2).
+        // Disconnect/theme stay reachable via the top ⋮ menu; keep a
+        // compact text row here to avoid dead ends.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 4.dp, bottom = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(
-                onClick = onDisconnect,
-                modifier = Modifier.weight(1f),
-            ) { Text("断开配对") }
-            IconButton(onClick = onToggleTheme) {
-                Text(if (isDark) "☀" else "🌙")
+            androidx.compose.foundation.Canvas(Modifier.size(6.dp)) {
+                drawCircle(androidx.compose.ui.graphics.Color(0xFF22C55E))
             }
+            Spacer(Modifier.padding(start = 6.dp))
+            Text(
+                "已连接",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDisconnect) { Text("断开") }
         }
     }
 
