@@ -378,9 +378,10 @@ fun ChatScreen(
 }
 
 /**
- * Input bar (user screenshot layout): top plain text area, middle icon +
- * send row, bottom three outlined chips (thinking / model / plan).
- * Outlined container 20dp, no filled field background.
+ * Web 1:1 composer (screenshot 1 bottom): placeholder 发送消息到当前会话,
+ * single bottom row: Pi pill / model pill / web icon / image icon / send.
+ * Thinking-level + plan mode stay reachable via model sheet long-press
+ * area (kept as separate chips above when active).
  */
 @Composable
 private fun InputCard(
@@ -453,98 +454,75 @@ private fun InputCard(
                     maxLines = 5,
                 )
             }
+            // Web 1:1 bottom row: Pi pill / model pill / web / image / send.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                Text(
+                    "Pi",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = onModelTap,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 4.dp,
+                        vertical = 0.dp,
+                    ),
+                ) {
+                    Text(
+                        modelLabel,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = onPromptTap,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Text("🌐", style = MaterialTheme.typography.titleMedium)
+                }
                 IconButton(
                     onClick = onPickImages,
                     enabled = !attaching && !streaming,
+                    modifier = Modifier.size(40.dp),
                 ) {
                     if (attaching) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
                     } else {
                         Text("🖼", style = MaterialTheme.typography.titleMedium)
                     }
                 }
-                IconButton(onClick = onPromptTap) {
-                    Text("✦", style = MaterialTheme.typography.titleLarge)
-                }
-                Spacer(Modifier.weight(1f))
-                Surface(
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    color = if (text.trim().isNotEmpty() || attachments.isNotEmpty()) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    },
-                    modifier = Modifier.size(48.dp),
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = { if (streaming) onStop() else onSend() },
+                    enabled = streaming ||
+                        text.trim().isNotEmpty() || attachments.isNotEmpty(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 16.dp,
+                        vertical = 8.dp,
+                    ),
                 ) {
-                    IconButton(
-                        onClick = { if (streaming) onStop() else onSend() },
-                        enabled = streaming ||
-                            text.trim().isNotEmpty() || attachments.isNotEmpty(),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        Icon(
-                            if (streaming) Icons.Filled.Stop
-                            else Icons.AutoMirrored.Filled.Send,
-                            contentDescription = if (streaming) "中断" else "发送",
-                            tint = if (text.trim().isNotEmpty() || attachments.isNotEmpty() || streaming) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
+                    Text(if (streaming) "停止" else "发送")
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onThinkingTap,
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 10.dp,
-                        vertical = 6.dp,
-                    ),
+            // Thinking-level + plan stay one tap away: compact second row
+            // (web keeps them in pickers; keep visible but subordinate).
+            if (planMode || thinkingLabel != null) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("◉")
-                    Spacer(Modifier.width(4.dp))
-                    Text(thinkingLabel ?: "档位", maxLines = 1)
-                }
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onModelTap,
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 10.dp,
-                        vertical = 6.dp,
-                    ),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("🤖")
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        modelLabel,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                }
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onPlanToggle,
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 10.dp,
-                        vertical = 6.dp,
-                    ),
-                ) {
-                    Text("▤")
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (planMode) "计划·开" else "计划", maxLines = 1)
+                    thinkingLabel?.let {
+                        TextButton(onClick = onThinkingTap) { Text(it) }
+                    }
+                    if (planMode) {
+                        TextButton(onClick = onPlanToggle) { Text("计划·开") }
+                    }
                 }
             }
         }
