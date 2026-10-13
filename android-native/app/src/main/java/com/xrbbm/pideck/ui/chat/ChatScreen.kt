@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -278,10 +280,8 @@ fun ChatScreen(
 }
 
 /**
- * Rounded floating input card: attachment strip + text field + two-row
- * toolbar (send/stop right, model + thinking + plan chips left).
- * Mirrors Flutter: model name truncates at 12 chars, plan chip never
- * squeezed out.
+ * M3 input bar (skill: filled text field + FAB send + FilterChip model
+ * row + InputChip attachments). Plan chip never squeezed out.
  */
 @Composable
 private fun InputCard(
@@ -299,63 +299,68 @@ private fun InputCard(
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
-    androidx.compose.material3.Surface(
+    Surface(
         tonalElevation = 3.dp,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Column(Modifier.padding(10.dp)) {
+        Column(Modifier.padding(12.dp)) {
             if (attachments.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     attachments.forEachIndexed { i, _ ->
-                        androidx.compose.material3.AssistChip(
+                        androidx.compose.material3.InputChip(
+                            selected = false,
                             onClick = {},
                             label = { Text("图${i + 1}") },
                             trailingIcon = {
-                                TextButton(onClick = { onRemoveAttachment(i) }) {
-                                    Text("✕")
+                                IconButton(
+                                    onClick = { onRemoveAttachment(i) },
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    Text("✕", style = MaterialTheme.typography.labelSmall)
                                 }
                             },
                         )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
             }
-            OutlinedTextField(
-                value = text,
-                onValueChange = onText,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                placeholder = { Text("输入消息…") },
-                shape = RoundedCornerShape(14.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onThinkingTap) {
-                    Text(thinkingLabel ?: "档位")
-                }
-                TextButton(onClick = onModelTap) {
-                    Text(
-                        if (modelLabel.length > 12) modelLabel.take(12) + "…" else modelLabel,
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onPlanToggle) {
-                    Text(if (planMode) "计划·开" else "计划")
-                }
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                androidx.compose.material3.TextField(
+                    value = text,
+                    onValueChange = onText,
+                    modifier = Modifier.weight(1f),
+                    minLines = 3,
+                    maxLines = 6,
+                    placeholder = { Text("输入消息…") },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    ),
+                )
                 if (streaming) {
-                    IconButton(onClick = onStop) {
+                    androidx.compose.material3.FilledTonalIconButton(onClick = onStop) {
                         Icon(Icons.Filled.Stop, contentDescription = "中断")
                     }
                 } else {
-                    IconButton(
+                    androidx.compose.material3.FloatingActionButton(
                         onClick = onSend,
-                        enabled = text.trim().isNotEmpty() || attachments.isNotEmpty(),
+                        modifier = Modifier.size(48.dp),
+                        containerColor = if (text.trim().isNotEmpty() || attachments.isNotEmpty()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
@@ -363,6 +368,35 @@ private fun InputCard(
                         )
                     }
                 }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.FilterChip(
+                    selected = false,
+                    onClick = onThinkingTap,
+                    label = { Text(thinkingLabel ?: "档位") },
+                )
+                Spacer(Modifier.width(8.dp))
+                androidx.compose.material3.FilterChip(
+                    selected = false,
+                    onClick = onModelTap,
+                    label = {
+                        Text(
+                            if (modelLabel.length > 12) modelLabel.take(12) + "…" else modelLabel,
+                        )
+                    },
+                )
+                Spacer(Modifier.weight(1f))
+                androidx.compose.material3.FilterChip(
+                    selected = planMode,
+                    onClick = onPlanToggle,
+                    label = { Text(if (planMode) "计划·开" else "计划") },
+                    leadingIcon = if (planMode) {
+                        { Text("✓") }
+                    } else {
+                        null
+                    },
+                )
             }
         }
     }

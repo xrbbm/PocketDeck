@@ -1,12 +1,15 @@
 package com.xrbbm.pideck.ui.chat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -50,15 +53,35 @@ fun AskCard(
     modifier: Modifier = Modifier,
 ) {
     // Rebuild selection state per request (mirrors Flutter per-request reset).
+    // M3: ElevatedCard + tonal header icon keeps approval visually distinct.
     key(request.requestId) {
-        Surface(
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            shape = RoundedCornerShape(12.dp),
+        androidx.compose.material3.ElevatedCard(
+            shape = RoundedCornerShape(20.dp),
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Column(Modifier.padding(12.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("✋")
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "需要你确认",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 if (request.isBatch) BatchBody(request, busy, onRespond)
                 else SingleBody(request, busy, onRespond)
             }

@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,9 +54,11 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
     val summary = toolSummary(part)
     var expanded by remember { mutableStateOf(false) }
 
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(12.dp),
+    // M3 hierarchy: ElevatedCard + status AssistChip + tonal content blocks.
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
@@ -66,33 +71,50 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
                         onClick = { expanded = !expanded },
                         onLongClick = {},
                     )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 if (part.streaming) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Text(if (part.isError) "❌" else "🔧")
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = if (part.isError) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (part.isError) "❌" else "🔧")
+                        }
+                    }
                 }
-                Spacer(Modifier.padding(start = 8.dp))
+                Spacer(Modifier.padding(start = 10.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             part.toolName,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             modifier = Modifier.weight(1f),
                         )
                         if (part.streaming) {
-                            Text("运行中", style = MaterialTheme.typography.labelSmall)
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("运行中") },
+                            )
                         } else if (part.isError) {
-                            Text(
-                                "执行失败",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("执行失败") },
                             )
                         }
                     }
@@ -101,7 +123,7 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
                             summary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -132,9 +154,10 @@ fun FullToolGroupCard(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(12.dp),
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
@@ -176,7 +199,7 @@ fun FullToolGroupCard(
     }
 }
 
-/** Monospace value block with capped scroll height. */
+/** Monospace value block: FilledTonal surface + label chip. */
 @Composable
 private fun ValueBlock(label: String, text: String, isError: Boolean = false) {
     val color = if (isError) {

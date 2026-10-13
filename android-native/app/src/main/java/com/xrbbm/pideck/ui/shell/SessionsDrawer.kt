@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -105,14 +106,26 @@ fun SessionsDrawer(
                 Text("⟳")
             }
         }
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
+        // M3 SearchBar-style field (skill: rounded 28dp + leading icon).
+        androidx.compose.material3.SearchBar(
+            inputField = {
+                androidx.compose.material3.SearchBarDefaults.InputField(
+                    query = query,
+                    onQueryChange = { query = it },
+                    onSearch = {},
+                    expanded = false,
+                    onExpandedChange = {},
+                    placeholder = { Text("搜索会话") },
+                    leadingIcon = { Text("🔍") },
+                )
+            },
+            expanded = false,
+            onExpandedChange = {},
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
-            placeholder = { Text("搜索会话") },
-            singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            content = {},
         )
         Spacer(Modifier.height(4.dp))
         LazyColumn(
@@ -144,6 +157,7 @@ fun SessionsDrawer(
                             mutableStateOf(g.isChat || query.trim().isNotEmpty())
                         }
                         Column {
+                            // M3 group header: tonal icon + title + count badge.
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -151,20 +165,30 @@ fun SessionsDrawer(
                                         onClick = { open = !open },
                                         onLongClick = {},
                                     )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(if (g.isChat) "💬" else "📁")
-                                Spacer(Modifier.padding(start = 8.dp))
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    androidx.compose.foundation.layout.Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(if (g.isChat) "💬" else "📁")
+                                    }
+                                }
+                                Spacer(Modifier.padding(start = 10.dp))
                                 Text(
                                     g.title,
                                     style = MaterialTheme.typography.titleSmall,
                                     modifier = Modifier.weight(1f),
                                 )
-                                Text(
-                                    "${g.sessions.size} 个会话",
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
+                                androidx.compose.material3.Badge {
+                                    Text("${g.sessions.size}")
+                                }
                             }
                             AnimatedVisibility(
                                 visible = open,
@@ -261,37 +285,46 @@ private fun SessionRow(
     onTap: () -> Unit,
     onMenu: () -> Unit,
 ) {
+    // M3 NavigationDrawerItem: pill-selected row; trailing menu kept for
+    // rename/copy/export/delete (long-press also opens it when idle).
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onTap,
+                onClick = {},
                 onLongClick = { if (!busy) onMenu() },
-            )
-            .padding(start = 28.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            if (session.forked) "⑂" else "💬",
-            color = if (busy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        androidx.compose.material3.NavigationDrawerItem(
+            icon = {
+                Text(
+                    if (session.forked) "⑂" else "💬",
+                    color = if (busy) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            label = {
+                Text(
+                    session.title.ifEmpty { "(无标题)" },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            selected = selected,
+            onClick = onTap,
+            badge = if (busy) {
+                { Text("运行中", style = MaterialTheme.typography.labelSmall) }
+            } else {
+                null
+            },
+            modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.padding(start = 8.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                session.title.ifEmpty { "(无标题)" },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface,
-            )
-            if (busy) {
-                Text("运行中", style = MaterialTheme.typography.labelSmall)
-            }
-        }
         if (busy) {
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier
+                    .padding(end = 16.dp)
+                    .size(16.dp),
                 strokeWidth = 2.dp,
             )
         } else {
