@@ -222,7 +222,9 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
     var todoSnap by remember(sessionId) {
         mutableStateOf<SessionTodoSnapshot?>(null)
     }
-    var open by remember(sessionId) { mutableStateOf<String?>(null) }
+    // Default-expand the file row so the horizontal chips are visible
+    // on first paint (user asked for web-like flow layout at a glance).
+    var open by remember(sessionId) { mutableStateOf<String?>("file") }
 
     suspend fun load() {
         try {
@@ -264,11 +266,26 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
                 expanded = open == "file",
                 onToggle = { open = if (open == "file") null else "file" },
             ) {
-                changeList.take(30).forEach { c ->
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("${c.basename} ×${c.count}") },
-                    )
+                // Web 1:1: horizontal flow chips (basename + count badge).
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    changeList.take(30).forEach { c ->
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(c.basename) },
+                            trailingIcon = {
+                                androidx.compose.material3.Badge(
+                                    containerColor =
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor =
+                                        MaterialTheme.colorScheme.onSecondaryContainer,
+                                ) { Text("${c.count}") }
+                            },
+                        )
+                    }
                 }
             }
         }
