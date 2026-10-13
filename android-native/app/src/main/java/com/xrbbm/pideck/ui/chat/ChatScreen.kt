@@ -52,6 +52,7 @@ fun ChatScreen(
     session: WebSession,
     onOpenDrawer: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
+    sessions: List<WebSession>? = null,
     onSelectSession: ((WebSession) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -163,6 +164,11 @@ fun ChatScreen(
                 .padding(padding),
         ) {
             Column(Modifier.fillMaxSize()) {
+                BranchBar(
+                    sessions = sessions,
+                    activeId = session.id,
+                    onSelect = onSelectSession,
+                )
                 vm.pendingUi?.let { req ->
                     AskCard(
                         request = req,
@@ -170,6 +176,7 @@ fun ChatScreen(
                         onRespond = { json -> scope.launch { vm.respondUi(json) } },
                     )
                 }
+                ActivityStrips(api = api, sessionId = session.id)
                 Box(Modifier.weight(1f)) {
                     ChatTimeline(
                         messages = vm.messages,

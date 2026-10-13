@@ -58,6 +58,10 @@ class PairingStore(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[Keys.LastSessionId] = id }
     }
 
+    suspend fun clearLastSessionId() {
+        context.dataStore.edit { prefs -> prefs.remove(Keys.LastSessionId) }
+    }
+
     suspend fun loadDarkTheme(): Boolean =
         context.dataStore.data.first()[Keys.DarkTheme] ?: false
 
