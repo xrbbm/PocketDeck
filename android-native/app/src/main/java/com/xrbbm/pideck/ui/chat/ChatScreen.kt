@@ -136,21 +136,63 @@ fun ChatScreen(
         bottomBar = {
             var modelSheet by remember { mutableStateOf(false) }
             var thinkingSheet by remember { mutableStateOf(false) }
+            var promptSheet by remember { mutableStateOf(false) }
+            var attaching by remember { mutableStateOf(false) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val pickImages =
+                androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(
+                        maxItems = ImageAttach.MAX_COUNT,
+                    ),
+                ) { uris ->
+                    if (uris.isEmpty()) return@rememberLauncherForActivityResult
+                    scope.launch {
+                        attaching = true
+                        try {
+                            val (encoded, dropped) = ImageAttach.encodeAll(context, uris)
+                            vm.addAttachments(encoded)
+                            if (dropped > 0) vm.reportError("有 $dropped 张图片过大（>2MB），已跳过")
+                        } catch (e: Exception) {
+                            vm.reportError("添加图片失败：$e")
+                        } finally {
+                            attaching = false
+                        }
+                    }
+                }
             InputCard(
                 text = vm.inputText,
                 onText = vm::onInputChange,
                 streaming = vm.streaming,
+                attaching = attaching,
                 planMode = vm.planMode,
                 modelLabel = vm.model?.display ?: "模型",
                 thinkingLabel = vm.thinkingLevel,
                 attachments = vm.attachments,
                 onRemoveAttachment = vm::removeAttachment,
+                onPickImages = {
+                    pickImages.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                        ),
+                    )
+                },
+                onPromptTap = { promptSheet = true },
                 onPlanToggle = { vm.planMode = !vm.planMode },
                 onModelTap = { modelSheet = true },
                 onThinkingTap = { thinkingSheet = true },
                 onSend = { scope.launch { vm.send() } },
                 onStop = { scope.launch { vm.stop() } },
             )
+            if (promptSheet) {
+                PromptSheet(
+                    api = api,
+                    onDismiss = { promptSheet = false },
+                    onInsert = { content ->
+                        promptSheet = false
+                        vm.appendPrompt(content)
+                    },
+                )
+            }
             if (modelSheet) {
                 ModelSheet(
                     api = api,
@@ -288,11 +330,14 @@ private fun InputCard(
     text: String,
     onText: (String) -> Unit,
     streaming: Boolean,
+    attaching: Boolean = false,
     planMode: Boolean,
     modelLabel: String,
     thinkingLabel: String?,
     attachments: List<String>,
     onRemoveAttachment: (Int) -> Unit,
+    onPickImages: () -> Unit = {},
+    onPromptTap: () -> Unit = {},
     onPlanToggle: () -> Unit,
     onModelTap: () -> Unit,
     onThinkingTap: () -> Unit,
@@ -371,6 +416,19 @@ private fun InputCard(
             }
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onPickImages,
+                    enabled = !attaching && !streaming,
+                ) {
+                    if (attaching) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    } else {
+                        Text("🖼", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+                IconButton(onClick = onPromptTap) {
+                    Text("💡", style = MaterialTheme.typography.titleMedium)
+                }
                 androidx.compose.material3.FilterChip(
                     selected = false,
                     onClick = onThinkingTap,

@@ -142,6 +142,16 @@ class ChatViewModel(
         error = null
     }
 
+    fun reportError(msg: String) {
+        error = msg
+    }
+
+    /** Prompt insert: empty input takes content, else append after blank line. */
+    fun appendPrompt(content: String) {
+        if (content.isEmpty()) return
+        inputText = if (inputText.isEmpty()) content else "$inputText\n\n$content"
+    }
+
     suspend fun loadFirst() {
         loading = true
         try {
