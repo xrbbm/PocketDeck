@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,9 +20,49 @@ android {
         versionName = "0.9.0-n1"
     }
 
+    // Release signing reuses the Flutter keystore (android/key.properties),
+    // debug key otherwise (mirrors android/app/build.gradle.kts).
+    // storeFile (e.g. keystore/x.jks) resolves from android/ in Flutter;
+    // anchor the same file from android-native via ../android/<rel>.
+    val keystoreProperties = Properties()
+    val keystorePropsFile = rootProject.file("../android/key.properties")
+    if (keystorePropsFile.exists()) {
+        keystoreProperties.load(keystorePropsFile.inputStream())
+    }
+    // NOTE: android/key.properties storeFile=../keystore/x.jks is stale
+    // (the file actually lives at android/keystore/): try the literal path
+    // first, then the ../-stripped form.
+    val androidDir = rootProject.projectDir.toPath().resolve("../android").normalize()
+    fun androidFile(rel: String): java.io.File {
+        val norm = rel.replace('\\', '/')
+        val direct = androidDir.resolve(norm).normalize().toFile()
+        if (direct.exists()) return direct
+        val stripped = norm.removePrefix("../")
+        return androidDir.resolve(stripped).normalize().toFile()
+    }
+    val hasReleaseKey =
+        (keystoreProperties["keyAlias"] as String?).isNullOrBlank().not() &&
+            (keystoreProperties["keyPassword"] as String?).isNullOrBlank().not() &&
+            (keystoreProperties["storePassword"] as String?).isNullOrBlank().not() &&
+            (keystoreProperties["storeFile"] as String?).isNullOrBlank().not() &&
+            (keystoreProperties["storeFile"] as String?)?.let { androidFile(it).exists() } == true
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = androidFile(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
