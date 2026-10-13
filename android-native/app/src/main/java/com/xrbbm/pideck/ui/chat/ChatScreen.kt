@@ -487,9 +487,9 @@ private fun InputCard(
                     ),
                 ) {
                     Text(
-                        if (modelLabel.length > 8) modelLabel.take(8) + "…" else modelLabel,
+                        if (modelLabel.length > 8) modelLabel.take(8) + "..." else modelLabel,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
