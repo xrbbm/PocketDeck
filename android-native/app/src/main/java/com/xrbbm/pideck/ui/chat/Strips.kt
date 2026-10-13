@@ -3,6 +3,7 @@ package com.xrbbm.pideck.ui.chat
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -200,6 +202,84 @@ fun ActivityStrips(
                     Spacer(Modifier.height(2.dp))
                 }
             }
+        }
+    }
+}
+
+/**
+ * Pinned summary rows above the input (user screenshot 1): one fixed
+ * row per strip (icon + title + count + chevron). Tapping expands the
+ * existing StripShell content inline; empty strips render nothing.
+ */
+@Composable
+fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifier) {
+    var changes by remember(sessionId) { mutableStateOf(0) }
+    var subagents by remember(sessionId) { mutableStateOf(0) }
+    var todos by remember(sessionId) { mutableStateOf(0) }
+    var open by remember(sessionId) { mutableStateOf<String?>(null) }
+
+    suspend fun load() {
+        try {
+            changes = api.fetchSessionFileChanges(sessionId).size
+        } catch (_: Exception) {
+        }
+        try {
+            subagents = api.fetchSessionSubagents(sessionId).size
+        } catch (_: Exception) {
+        }
+        try {
+            todos = api.fetchSessionTodo(sessionId)?.todos?.size ?: 0
+        } catch (_: Exception) {
+        }
+    }
+
+    LaunchedEffect(sessionId) {
+        load()
+        while (isActive) {
+            delay(5000)
+            load()
+        }
+    }
+
+    val rows = buildList {
+        if (changes > 0) add(Triple("file", "📄", "文件修改 $changes"))
+        if (subagents > 0) add(Triple("sub", "✨", "子代理 $subagents"))
+        if (todos > 0) add(Triple("todo", "📋", "任务清单 $todos"))
+    }
+    if (rows.isEmpty()) return
+    Column(modifier.fillMaxWidth()) {
+        rows.forEach { (key, icon, label) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { open = if (open == key) null else key },
+                        onLongClick = {},
+                    )
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(icon, style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.padding(start = 8.dp))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(if (open == key) "▾" else "▸")
+            }
+            if (open == key) {
+                // Reuse the full strip content for the expanded row.
+                Box(Modifier.fillMaxWidth()) {
+                    ActivityStrips(api = api, sessionId = sessionId)
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
         }
     }
 }

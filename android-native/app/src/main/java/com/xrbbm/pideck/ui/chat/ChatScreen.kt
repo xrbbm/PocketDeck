@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,30 +91,28 @@ fun ChatScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         topBar = {
-            TopAppBar(
+            // Slim header (user screenshot 2): single-line title + inline
+            // status dot, compact height via SmallTopAppBar defaults.
+            androidx.compose.material3.CenterAlignedTopAppBar(
                 title = {
-                    // Web 1:1: left title + online dot (screenshot 1 header).
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                "选择或新建会话",
-                                maxLines = 1,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.foundation.Canvas(
-                                    Modifier.size(6.dp),
-                                ) {
-                                    drawCircle(onlineColor)
-                                }
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    "空闲",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                        Text(
+                            session.title.ifEmpty { "选择或新建会话" },
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        androidx.compose.foundation.Canvas(Modifier.size(6.dp)) {
+                            drawCircle(onlineColor)
                         }
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "空闲",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 },
                 navigationIcon = {
@@ -215,30 +216,35 @@ fun ChatScreen(
                         }
                     }
                 }
-            InputCard(
-                text = vm.inputText,
-                onText = vm::onInputChange,
-                streaming = vm.streaming,
-                attaching = attaching,
-                planMode = vm.planMode,
-                modelLabel = vm.model?.display ?: "模型",
-                thinkingLabel = vm.thinkingLevel,
-                attachments = vm.attachments,
-                onRemoveAttachment = vm::removeAttachment,
-                onPickImages = {
-                    pickImages.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
-                        ),
-                    )
-                },
-                onPromptTap = { promptSheet = true },
-                onPlanToggle = { vm.planMode = !vm.planMode },
-                onModelTap = { modelSheet = true },
-                onThinkingTap = { thinkingSheet = true },
-                onSend = { scope.launch { vm.send() } },
-                onStop = { scope.launch { vm.stop() } },
-            )
+            // Pinned strips above input (user screenshot 1): fixed rows
+            // for file-changes / subagents / todo, content stays collapsed.
+            Column(Modifier.fillMaxWidth()) {
+                PinnedStrips(api = api, sessionId = session.id)
+                InputCard(
+                    text = vm.inputText,
+                    onText = vm::onInputChange,
+                    streaming = vm.streaming,
+                    attaching = attaching,
+                    planMode = vm.planMode,
+                    modelLabel = vm.model?.display ?: "模型",
+                    thinkingLabel = vm.thinkingLevel,
+                    attachments = vm.attachments,
+                    onRemoveAttachment = vm::removeAttachment,
+                    onPickImages = {
+                        pickImages.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                            ),
+                        )
+                    },
+                    onPromptTap = { promptSheet = true },
+                    onPlanToggle = { vm.planMode = !vm.planMode },
+                    onModelTap = { modelSheet = true },
+                    onThinkingTap = { thinkingSheet = true },
+                    onSend = { scope.launch { vm.send() } },
+                    onStop = { scope.launch { vm.stop() } },
+                )
+            }
             if (promptSheet) {
                 PromptSheet(
                     api = api,
@@ -293,7 +299,6 @@ fun ChatScreen(
                         onRespond = { json -> scope.launch { vm.respondUi(json) } },
                     )
                 }
-                ActivityStrips(api = api, sessionId = session.id)
                 Box(Modifier.weight(1f)) {
                     ChatTimeline(
                         messages = vm.messages,
@@ -432,10 +437,17 @@ private fun InputCard(
                 }
                 Spacer(Modifier.height(4.dp))
             }
+            // Adaptive height: start ~1/4 screen, grow with content,
+            // cap at 1/2 screen then scroll inside (user screenshot spec).
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+            val minH = screenH * 0.08f
+            val maxH = screenH * 0.5f
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(88.dp),
+                    .heightIn(min = minH, max = maxH)
+                    .verticalScroll(rememberScrollState()),
             ) {
                 if (text.isEmpty()) {
                     Text(
@@ -447,11 +459,12 @@ private fun InputCard(
                 androidx.compose.foundation.text.BasicTextField(
                     value = text,
                     onValueChange = onText,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = minH),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                     ),
-                    maxLines = 5,
                 )
             }
             // Web 1:1 bottom row: Pi pill / model pill / web / image / send.
@@ -465,6 +478,7 @@ private fun InputCard(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Short model name (user screenshot: muse-sp...): cap 8.
                 TextButton(
                     onClick = onModelTap,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -473,8 +487,9 @@ private fun InputCard(
                     ),
                 ) {
                     Text(
-                        modelLabel,
+                        if (modelLabel.length > 8) modelLabel.take(8) + "…" else modelLabel,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
