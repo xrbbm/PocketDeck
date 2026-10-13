@@ -93,3 +93,21 @@ fun PiDeckTheme(dark: Boolean, content: @Composable () -> Unit) {
         content = content,
     )
 }
+
+/**
+ * Web 1:1 theme (zinc tokens from the web CSS). When [web] is true the
+ * whole app renders with the web palette; otherwise the legacy
+ * Catppuccin/OneDark palette. Defaults to web (user asked for 1:1).
+ */
+@Composable
+fun AppTheme(dark: Boolean, web: Boolean = true, content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = when {
+            web && dark -> WebDarkColors
+            web -> WebLightColors
+            dark -> DarkColors
+            else -> LightColors
+        },
+        content = content,
+    )
+}

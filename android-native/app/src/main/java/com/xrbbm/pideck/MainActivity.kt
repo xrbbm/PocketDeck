@@ -24,7 +24,7 @@ import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.ui.chat.ChatScreen
 import com.xrbbm.pideck.ui.pair.PairScreen
 import com.xrbbm.pideck.ui.shell.ShellScreen
-import com.xrbbm.pideck.ui.theme.PiDeckTheme
+import com.xrbbm.pideck.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -60,7 +60,7 @@ private fun Gate(debugUrl: String? = null) {
         loading = false
     }
 
-    PiDeckTheme(dark = dark) {
+    AppTheme(dark = dark, web = true) {
         when {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()

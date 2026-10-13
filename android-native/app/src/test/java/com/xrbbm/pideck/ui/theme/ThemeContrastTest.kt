@@ -31,6 +31,24 @@ class ThemeContrastTest {
     }
 
     @Test
+    fun `web light palette text contrast meets AA`() {
+        val cs = WebLightColors
+        // Body text on app surface.
+        assertTrue(ratio(cs.onSurface, cs.surface) >= 4.5)
+        // Secondary text on app surface.
+        assertTrue(ratio(cs.onSurfaceVariant, cs.surface) >= 4.5)
+        // White text on accent (send button).
+        assertTrue(ratio(Color.White, WebTokens.Accent) >= 4.5)
+    }
+
+    @Test
+    fun `web dark palette text contrast meets AA`() {
+        val cs = WebDarkColors
+        assertTrue(ratio(cs.onSurface, cs.surface) >= 4.5)
+        assertTrue(ratio(cs.onSurfaceVariant, cs.surface) >= 4.5)
+    }
+
+    @Test
     fun `functional colors meet AA`() {
         val light = LightColors
         // Light primary as body link color (on light surface).
