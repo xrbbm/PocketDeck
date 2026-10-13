@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import com.xrbbm.pideck.core.net.SessionTodoSnapshot
 import com.xrbbm.pideck.core.net.SubagentEntry
 import com.xrbbm.pideck.core.net.WebSession
 import com.xrbbm.pideck.core.net.deriveBranchFamily
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -75,7 +77,12 @@ fun BranchBar(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("⑂", style = MaterialTheme.typography.labelMedium)
+                    Icon(
+                        AppIcons.Branch,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
             }
             family.forEachIndexed { i, member ->
@@ -91,13 +98,24 @@ fun BranchBar(
                         )
                     },
                     icon = if (active) {
-                        { Text("✓", style = MaterialTheme.typography.labelSmall) }
+                        {
+                            Icon(
+                                AppIcons.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
                     } else {
                         null
                     },
                 )
                 if (i < family.size - 1) {
-                    Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        AppIcons.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
                 }
             }
         }
@@ -158,7 +176,7 @@ fun ActivityStrips(
     if (changes.isEmpty() && subagents.isEmpty() && todos.isEmpty()) return
     Column(modifier.fillMaxWidth()) {
         if (changes.isNotEmpty()) {
-            StripShell(icon = "📄", title = "文件修改", count = changes.size) {
+            StripShell(icon = AppIcons.File, title = "文件修改", count = changes.size) {
                 changes.take(30).forEach { c ->
                     AssistChip(
                         onClick = {},
@@ -168,23 +186,25 @@ fun ActivityStrips(
             }
         }
         if (subagents.isNotEmpty()) {
-            StripShell(icon = "✨", title = "子代理", count = subagents.size) {
+            StripShell(icon = AppIcons.Agent, title = "子代理", count = subagents.size) {
                 subagents.forEach { entry ->
                     SubagentRow(entry = entry)
                 }
             }
         }
         if (todos.isNotEmpty()) {
-            StripShell(icon = "📋", title = "任务清单", count = todos.size) {
+            StripShell(icon = AppIcons.Todo, title = "任务清单", count = todos.size) {
                 todos.forEach { item ->
                     Row(verticalAlignment = Alignment.Top) {
-                        Text(
-                            if (item.completed) "✅" else "○",
-                            color = if (item.completed) {
+                        Icon(
+                            if (item.completed) AppIcons.CheckCircle else AppIcons.Unchecked,
+                            contentDescription = null,
+                            tint = if (item.completed) {
                                 MaterialTheme.colorScheme.secondary
                             } else {
                                 MaterialTheme.colorScheme.outline
                             },
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.padding(start = 6.dp))
                         Text(
@@ -261,7 +281,7 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
     Column(modifier.fillMaxWidth()) {
         if ("file" in rows) {
             PinnedRow(
-                icon = "📄",
+                icon = AppIcons.File,
                 label = "文件修改 ${changeList.size}",
                 expanded = open == "file",
                 onToggle = { open = if (open == "file") null else "file" },
@@ -291,7 +311,7 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
         }
         if ("sub" in rows) {
             PinnedRow(
-                icon = "✨",
+                icon = AppIcons.Agent,
                 label = "子代理 ${subagentList.size}",
                 expanded = open == "sub",
                 onToggle = { open = if (open == "sub") null else "sub" },
@@ -301,20 +321,22 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
         }
         if ("todo" in rows) {
             PinnedRow(
-                icon = "📋",
+                icon = AppIcons.Todo,
                 label = "任务清单 ${todoList.size}",
                 expanded = open == "todo",
                 onToggle = { open = if (open == "todo") null else "todo" },
             ) {
                 todoList.forEach { item ->
                     Row(verticalAlignment = Alignment.Top) {
-                        Text(
-                            if (item.completed) "✅" else "○",
-                            color = if (item.completed) {
+                        Icon(
+                            if (item.completed) AppIcons.CheckCircle else AppIcons.Unchecked,
+                            contentDescription = null,
+                            tint = if (item.completed) {
                                 MaterialTheme.colorScheme.secondary
                             } else {
                                 MaterialTheme.colorScheme.outline
                             },
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.padding(start = 6.dp))
                         Text(
@@ -339,7 +361,7 @@ fun PinnedStrips(api: ApiClient, sessionId: String, modifier: Modifier = Modifie
 /** Single pinned row: fixed header + inline children, no nested cards. */
 @Composable
 private fun PinnedRow(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     expanded: Boolean,
     onToggle: () -> Unit,
@@ -353,7 +375,12 @@ private fun PinnedRow(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(icon, style = MaterialTheme.typography.labelMedium)
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
             Spacer(Modifier.padding(start = 8.dp))
             Text(
                 label,
@@ -361,7 +388,12 @@ private fun PinnedRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            Text(if (expanded) "▾" else "▸")
+            Icon(
+                if (expanded) AppIcons.ChevronDown else AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
         if (expanded) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -378,7 +410,7 @@ private fun PinnedRow(
 
 @Composable
 private fun StripShell(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     count: Int,
     content: @Composable () -> Unit,
@@ -393,12 +425,24 @@ private fun StripShell(
     ) {
         androidx.compose.material3.ListItem(
             headlineContent = { Text(title, style = MaterialTheme.typography.titleSmall) },
-            leadingContent = { Text(icon) },
+            leadingContent = {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            },
             trailingContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Badge { Text("$count") }
                     Spacer(Modifier.padding(start = 8.dp))
-                    Text(if (open) "▾" else "▸")
+                    Icon(
+                        if (open) AppIcons.ChevronDown else AppIcons.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             },
             modifier = Modifier.combinedClickable(

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.core.net.UiMessage
 import com.xrbbm.pideck.core.net.WebSession
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.launch
 
 /** Chat screen: timeline + approval card + floating input + ring/menu. */
@@ -140,7 +141,11 @@ fun ChatScreen(
                     // Multi-project mismatch hides the entry (mirrors Flutter).
                     if (projectId != null) {
                         IconButton(onClick = { workspace = true }) {
-                            Text("📁")
+                            Icon(
+                                AppIcons.Folder,
+                                contentDescription = "工作区",
+                                modifier = Modifier.size(22.dp),
+                            )
                         }
                     }
                     if (vm.streaming) {
@@ -159,7 +164,9 @@ fun ChatScreen(
                     ) {
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("搜索会话消息") },
-                            leadingIcon = { Text("🔍") },
+                            leadingIcon = {
+                                Icon(AppIcons.Search, contentDescription = null)
+                            },
                             onClick = {
                                 overflow = false
                                 onSearchMessages()
@@ -167,7 +174,12 @@ fun ChatScreen(
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text(if (isDark) "切换主题 · 浅色" else "切换主题 · 暗色") },
-                            leadingIcon = { Text("🌗") },
+                            leadingIcon = {
+                                Icon(
+                                    if (isDark) AppIcons.ThemeLight else AppIcons.ThemeDark,
+                                    contentDescription = null,
+                                )
+                            },
                             onClick = {
                                 overflow = false
                                 onToggleTheme()
@@ -175,12 +187,16 @@ fun ChatScreen(
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("安装应用") },
-                            leadingIcon = { Text("⬇") },
+                            leadingIcon = {
+                                Icon(AppIcons.Download, contentDescription = null)
+                            },
                             onClick = { overflow = false },
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("技能与扩展") },
-                            leadingIcon = { Text("🧩") },
+                            leadingIcon = {
+                                Icon(AppIcons.Skills, contentDescription = null)
+                            },
                             onClick = {
                                 overflow = false
                                 onOpenSkills()
@@ -429,7 +445,11 @@ private fun InputCard(
                                     onClick = { onRemoveAttachment(i) },
                                     modifier = Modifier.size(24.dp),
                                 ) {
-                                    Text("✕", style = MaterialTheme.typography.labelSmall)
+                                    Icon(
+                                        AppIcons.Close,
+                                        contentDescription = "移除图片",
+                                        modifier = Modifier.size(14.dp),
+                                    )
                                 }
                             },
                         )
@@ -498,7 +518,12 @@ private fun InputCard(
                     onClick = onPromptTap,
                     modifier = Modifier.size(40.dp),
                 ) {
-                    Text("🌐", style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        AppIcons.Web,
+                        contentDescription = "提示词库",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
                 IconButton(
                     onClick = onPickImages,
@@ -508,7 +533,12 @@ private fun InputCard(
                     if (attaching) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp))
                     } else {
-                        Text("🖼", style = MaterialTheme.typography.titleMedium)
+                        Icon(
+                            AppIcons.Image,
+                            contentDescription = "添加图片",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
                     }
                 }
                 androidx.compose.material3.FilledTonalButton(

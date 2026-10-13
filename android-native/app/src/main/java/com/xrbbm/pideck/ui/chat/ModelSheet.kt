@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.core.net.AvailableModel
+import com.xrbbm.pideck.ui.theme.AppIcons
 
 /** Thinking-level fallback (mirrors web WEB_THINKING_LEVELS). */
 val THINKING_FALLBACK = listOf("off", "minimal", "low", "medium", "high", "xhigh", "max")
@@ -190,7 +192,14 @@ fun ModelSheet(
                                         }
                                     }
                                 }
-                                if (isSel) Text("✓", style = MaterialTheme.typography.titleMedium)
+                                if (isSel) {
+                                    Icon(
+                                        AppIcons.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
                             }
                         }
                         if (isSel) {
@@ -208,7 +217,13 @@ fun ModelSheet(
                                         onClick = { onPick(m, level) },
                                         label = { Text(level) },
                                         leadingIcon = if (currentLevel == level) {
-                                            { Text("✓") }
+                                            {
+                                                Icon(
+                                                    AppIcons.Check,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
                                         } else {
                                             null
                                         },
@@ -268,7 +283,13 @@ fun ThinkingSheet(
                         onClick = { onPick(level) },
                         label = { Text(level) },
                         leadingIcon = if (current == level) {
-                            { Text("✓") }
+                            {
+                                Icon(
+                                    AppIcons.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
                         } else {
                             null
                         },

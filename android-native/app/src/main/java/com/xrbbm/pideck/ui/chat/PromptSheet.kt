@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SearchBar
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.core.net.PromptList
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -112,7 +114,13 @@ fun PromptSheet(
                         expanded = false,
                         onExpandedChange = {},
                         placeholder = { Text("搜索提示词") },
-                        leadingIcon = { Text("🔍") },
+                        leadingIcon = {
+                            Icon(
+                                AppIcons.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        },
                     )
                 },
                 expanded = false,

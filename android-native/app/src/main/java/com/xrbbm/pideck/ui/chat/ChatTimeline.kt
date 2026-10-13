@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.UiMessage
 import com.xrbbm.pideck.core.net.UiPart
 import com.xrbbm.pideck.core.net.groupToolMessages
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -374,7 +377,12 @@ private fun EmptyTimeline() {
             modifier = Modifier.size(88.dp),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Text("🤖", style = MaterialTheme.typography.displayMedium)
+                Icon(
+                    AppIcons.Robot,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(44.dp),
+                )
             }
         }
         Text(
@@ -401,7 +409,14 @@ private fun ReasoningCard(text: String) {
                     onLongClick = {},
                 ),
             ) {
-                Text("💭 思考过程", style = MaterialTheme.typography.labelMedium)
+                Icon(
+                    AppIcons.Brain,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("思考过程", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.weight(1f))
                 Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelSmall)
             }

@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -44,6 +45,7 @@ import com.xrbbm.pideck.core.net.CommitEntry
 import com.xrbbm.pideck.core.net.GitBranchInfo
 import com.xrbbm.pideck.core.net.GitResourceGroups
 import com.xrbbm.pideck.core.net.WebFileNodeLite
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
@@ -199,7 +201,14 @@ private fun GitPanel(api: ApiClient, projectId: String) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("⑂", style = MaterialTheme.typography.headlineSmall) }
+                ) {
+                    Icon(
+                        AppIcons.Branch,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
             Text("当前项目不是 Git 仓库", style = MaterialTheme.typography.titleMedium)
             FilledTonalButton(onClick = { scope.launch { load() } }) { Text("重试") }
@@ -233,7 +242,12 @@ private fun GitPanel(api: ApiClient, projectId: String) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         ) {
-                            Text("⑂", style = MaterialTheme.typography.titleMedium)
+                            Icon(
+                                AppIcons.Branch,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(20.dp),
+                            )
                             Spacer(Modifier.padding(start = 8.dp))
                             Text(
                                 current,
@@ -479,7 +493,12 @@ private fun FilesPanel(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (n.isDirectory) "📁" else "📄")
+                        Icon(
+                            if (n.isDirectory) AppIcons.Folder else AppIcons.File,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
                         Spacer(Modifier.padding(start = 8.dp))
                         Text(
                             n.name,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +34,7 @@ import com.xrbbm.pideck.core.net.WebBatchQuestion
 import com.xrbbm.pideck.core.net.WebPendingUiRequest
 import com.xrbbm.pideck.core.net.batchAnswerLabel
 import com.xrbbm.pideck.core.net.splitAskOption
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -72,7 +74,12 @@ fun AskCard(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text("✋")
+                            Icon(
+                                AppIcons.Hand,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                     Spacer(Modifier.width(10.dp))

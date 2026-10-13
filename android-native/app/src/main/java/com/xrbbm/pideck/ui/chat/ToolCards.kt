@@ -20,9 +20,11 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.xrbbm.pideck.ui.theme.AppIcons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,7 +94,16 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
                             contentAlignment = Alignment.Center,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(if (part.isError) "❌" else "🔧")
+                            Icon(
+                                if (part.isError) AppIcons.ToolError else AppIcons.Wrench,
+                                contentDescription = null,
+                                tint = if (part.isError) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                },
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                 }
@@ -168,7 +179,12 @@ fun FullToolGroupCard(
                     .combinedClickable(onClick = { expanded = !expanded }, onLongClick = {})
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Text("🔧")
+                Icon(
+                    AppIcons.Wrench,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
                 Spacer(Modifier.padding(start = 8.dp))
                 Text(
                     "$toolName × ${parts.size}",

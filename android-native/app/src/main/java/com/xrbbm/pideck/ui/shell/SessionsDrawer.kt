@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -46,6 +47,7 @@ import com.xrbbm.pideck.core.net.WebProject
 import com.xrbbm.pideck.core.net.WebSession
 import com.xrbbm.pideck.core.net.WebState
 import com.xrbbm.pideck.core.net.groupSessions
+import com.xrbbm.pideck.ui.theme.AppIcons
 import kotlinx.coroutines.launch
 
 /**
@@ -116,7 +118,13 @@ fun SessionsDrawer(
                     expanded = false,
                     onExpandedChange = {},
                     placeholder = { Text("搜索会话") },
-                    leadingIcon = { Text("🔍") },
+                    leadingIcon = {
+                        Icon(
+                            AppIcons.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    },
                 )
             },
             expanded = false,
@@ -297,10 +305,12 @@ private fun SessionRow(
     ) {
         androidx.compose.material3.NavigationDrawerItem(
             icon = {
-                Text(
-                    if (session.forked) "⑂" else "💬",
-                    color = if (busy) MaterialTheme.colorScheme.primary
+                Icon(
+                    if (session.forked) AppIcons.Fork else AppIcons.Chat,
+                    contentDescription = null,
+                    tint = if (busy) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
             },
             label = {
@@ -385,7 +395,16 @@ fun NewSessionDialog(
                 if (projects.isNotEmpty()) {
                     projects.forEach { p ->
                         TextButton(onClick = { projectId = p.id }) {
-                            Text((if (projectId == p.id) "✓ " else "") + p.name)
+                            if (projectId == p.id) {
+                                Icon(
+                                    AppIcons.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(p.name)
                         }
                     }
                 } else {
