@@ -8,28 +8,52 @@ import androidx.compose.ui.graphics.Color
 
 // Catppuccin Latte (light) — slot-aligned with One Dark Pro (dark),
 // ported from Flutter main.dart buildLightTheme/buildDarkTheme.
-private val LatteBase = Color(0xFFEFF1F5)
-private val LatteMantle = Color(0xFFE6E9EF)
-private val LatteCrust = Color(0xFFDCE0E8)
-private val LatteText = Color(0xFF4C4F69)
-private val LatteSubtext = Color(0xFF5C5F77)
-private val LatteBubble = Color(0xFFCCD0DA)
-private val LatteBlue = Color(0xFF0B57D0)
-private val LatteTeal = Color(0xFF0E7377)
-private val LatteWarn = Color(0xFFB54708)
-private val LatteRed = Color(0xFFD20F39)
+// Public for the WCAG AA contrast test (mirrors pairing_store_test.dart).
+object PiDeckPalette {
+    val LatteBase = Color(0xFFEFF1F5)
+    val LatteMantle = Color(0xFFE6E9EF)
+    val LatteCrust = Color(0xFFDCE0E8)
+    val LatteText = Color(0xFF4C4F69)
+    val LatteSubtext = Color(0xFF5C5F77)
+    val LatteBubble = Color(0xFFCCD0DA)
+    val LatteBlue = Color(0xFF0B57D0)
+    val LatteTeal = Color(0xFF0E7377)
+    val LatteWarn = Color(0xFFB54708)
+    val LatteRed = Color(0xFFD20F39)
 
-private val OneDarkBg = Color(0xFF282C34)
-private val OneDarkDeep = Color(0xFF21252B)
-private val OneDarkFg = Color(0xFFABB2BF)
-private val OneDarkPanel = Color(0xFF2C313C)
-private val OneDarkBubble = Color(0xFF3E4451)
-private val OneDarkBlue = Color(0xFF61AFEF)
-private val OneDarkCyan = Color(0xFF56B6C2)
-private val OneDarkWarn = Color(0xFFF5B841)
-private val OneDarkRed = Color(0xFFE57A7D)
+    val OneDarkBg = Color(0xFF282C34)
+    val OneDarkDeep = Color(0xFF21252B)
+    val OneDarkFg = Color(0xFFABB2BF)
+    val OneDarkPanel = Color(0xFF2C313C)
+    val OneDarkBubble = Color(0xFF3E4451)
+    val OneDarkBlue = Color(0xFF61AFEF)
+    val OneDarkCyan = Color(0xFF56B6C2)
+    val OneDarkWarn = Color(0xFFF5B841)
+    val OneDarkRed = Color(0xFFE57A7D)
+}
 
-private val LightColors = lightColorScheme(
+private val LatteBase = PiDeckPalette.LatteBase
+private val LatteMantle = PiDeckPalette.LatteMantle
+private val LatteCrust = PiDeckPalette.LatteCrust
+private val LatteText = PiDeckPalette.LatteText
+private val LatteSubtext = PiDeckPalette.LatteSubtext
+private val LatteBubble = PiDeckPalette.LatteBubble
+private val LatteBlue = PiDeckPalette.LatteBlue
+private val LatteTeal = PiDeckPalette.LatteTeal
+private val LatteWarn = PiDeckPalette.LatteWarn
+private val LatteRed = PiDeckPalette.LatteRed
+
+private val OneDarkBg = PiDeckPalette.OneDarkBg
+private val OneDarkDeep = PiDeckPalette.OneDarkDeep
+private val OneDarkFg = PiDeckPalette.OneDarkFg
+private val OneDarkPanel = PiDeckPalette.OneDarkPanel
+private val OneDarkBubble = PiDeckPalette.OneDarkBubble
+private val OneDarkBlue = PiDeckPalette.OneDarkBlue
+private val OneDarkCyan = PiDeckPalette.OneDarkCyan
+private val OneDarkWarn = PiDeckPalette.OneDarkWarn
+private val OneDarkRed = PiDeckPalette.OneDarkRed
+
+val LightColors = lightColorScheme(
     primary = LatteBlue,
     onPrimary = Color.White,
     secondary = LatteTeal,
@@ -46,7 +70,7 @@ private val LightColors = lightColorScheme(
     error = LatteRed,
 )
 
-private val DarkColors = darkColorScheme(
+val DarkColors = darkColorScheme(
     primary = OneDarkBlue,
     onPrimary = OneDarkBg,
     secondary = OneDarkCyan,
