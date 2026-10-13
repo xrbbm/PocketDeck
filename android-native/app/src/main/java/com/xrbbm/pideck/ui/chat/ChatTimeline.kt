@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.UiMessage
 import com.xrbbm.pideck.core.net.UiPart
 import com.xrbbm.pideck.core.net.groupToolMessages
-import com.xrbbm.pideck.core.net.prettyToolValue
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -198,8 +197,12 @@ fun ChatTimeline(
             }
             groups.forEachIndexed { gi, group ->
                 if (group.size > 1) {
+                    val tools = group.mapNotNull {
+                        it.parts.firstOrNull() as? UiPart.Tool
+                    }
+                    val name = (tools.firstOrNull()?.toolName) ?: "tool"
                     item(key = "group-$gi-${group.first().id}") {
-                        ToolGroupCard(messages = group)
+                        FullToolGroupCard(toolName = name, parts = tools)
                     }
                 } else {
                     val m = group.first()
@@ -306,7 +309,7 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
                     )
                 }
                 is UiPart.Reasoning -> ReasoningCard(text = part.text)
-                is UiPart.Tool -> ToolCard(part = part)
+                is UiPart.Tool -> FullToolCard(part = part)
                 is UiPart.File -> Unit
             }
         }
@@ -341,84 +344,4 @@ private fun ReasoningCard(text: String) {
     }
 }
 
-/** Placeholder: full ToolCard lands in step 5; timeline shows compact rows. */
-@Composable
-private fun ToolCard(part: UiPart.Tool) {
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (part.streaming) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
-                }
-                Text(
-                    "🔧 ${part.toolName}",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(start = if (part.streaming) 6.dp else 0.dp),
-                )
-                Spacer(Modifier.weight(1f))
-                if (part.isError) {
-                    Text("执行失败", color = MaterialTheme.colorScheme.error)
-                } else if (part.streaming) {
-                    Text("运行中", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-            val summary = com.xrbbm.pideck.core.net.toolSummary(part)
-            if (summary.isNotEmpty()) {
-                Text(
-                    summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                )
-            }
-            val output = prettyToolValue(part.output)
-            if (output.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(output.take(400), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
 
-@Composable
-private fun ToolGroupCard(messages: List<UiMessage>) {
-    var expanded by remember { mutableStateOf(false) }
-    val first = (messages.first().parts.firstOrNull() as? UiPart.Tool)
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.combinedClickable(
-                    onClick = { expanded = !expanded },
-                    onLongClick = {},
-                ),
-            ) {
-                Text(
-                    "🔧 ${first?.toolName ?: "tool"} × ${messages.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelSmall)
-            }
-            if (expanded) {
-                Spacer(Modifier.height(6.dp))
-                messages.forEach { m ->
-                    (m.parts.firstOrNull() as? UiPart.Tool)?.let { ToolCard(part = it) }
-                    Spacer(Modifier.height(4.dp))
-                }
-            }
-        }
-    }
-}

@@ -1,5 +1,6 @@
 package com.xrbbm.pideck.ui.chat
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,11 +44,7 @@ import com.xrbbm.pideck.core.net.UiMessage
 import com.xrbbm.pideck.core.net.WebSession
 import kotlinx.coroutines.launch
 
-/**
- * Chat screen: timeline + floating rounded input card + header ring/menu.
- * Step 4 scope: timeline, follow-scroll, stop (local-first then abort),
- * error/unavailable lanes. Tool/Ask cards + model sheet land in step 5.
- */
+/** Chat screen: timeline + approval card + floating input + ring/menu. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -117,15 +114,47 @@ fun ChatScreen(
             )
         },
         bottomBar = {
+            var modelSheet by remember { mutableStateOf(false) }
+            var thinkingSheet by remember { mutableStateOf(false) }
             InputCard(
                 text = vm.inputText,
                 onText = vm::onInputChange,
                 streaming = vm.streaming,
                 planMode = vm.planMode,
+                modelLabel = vm.model?.display ?: "模型",
+                thinkingLabel = vm.thinkingLevel,
+                attachments = vm.attachments,
+                onRemoveAttachment = vm::removeAttachment,
                 onPlanToggle = { vm.planMode = !vm.planMode },
+                onModelTap = { modelSheet = true },
+                onThinkingTap = { thinkingSheet = true },
                 onSend = { scope.launch { vm.send() } },
                 onStop = { scope.launch { vm.stop() } },
             )
+            if (modelSheet) {
+                ModelSheet(
+                    api = api,
+                    current = vm.model,
+                    currentLevel = vm.thinkingLevel,
+                    onDismiss = { modelSheet = false },
+                    onPick = { m, level ->
+                        modelSheet = false
+                        scope.launch { vm.setModel(m, level) }
+                    },
+                )
+            }
+            if (thinkingSheet) {
+                ThinkingSheet(
+                    levels = vm.model?.levels?.takeIf { it.isNotEmpty() }
+                        ?: THINKING_FALLBACK,
+                    current = vm.thinkingLevel,
+                    onDismiss = { thinkingSheet = false },
+                    onPick = { level ->
+                        thinkingSheet = false
+                        scope.launch { vm.setThinking(level) }
+                    },
+                )
+            }
         },
     ) { padding ->
         Box(
@@ -133,20 +162,31 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            ChatTimeline(
-                messages = vm.messages,
-                loading = vm.loading,
-                loadingMore = false,
-                hasMore = vm.hasMore,
-                error = null,
-                unavailable = null,
-                approvalSeq = vm.approvalSeq,
-                streaming = vm.streaming,
-                onLoadMore = { scope.launch { vm.loadMore() } },
-                onRetry = { scope.launch { vm.loadFirst() } },
-                onIgnoreError = vm::clearError,
-                onUserMessageLongPress = { menuMsg = it },
-            )
+            Column(Modifier.fillMaxSize()) {
+                vm.pendingUi?.let { req ->
+                    AskCard(
+                        request = req,
+                        busy = vm.uiResponding,
+                        onRespond = { json -> scope.launch { vm.respondUi(json) } },
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    ChatTimeline(
+                        messages = vm.messages,
+                        loading = vm.loading,
+                        loadingMore = false,
+                        hasMore = vm.hasMore,
+                        error = null,
+                        unavailable = null,
+                        approvalSeq = vm.approvalSeq,
+                        streaming = vm.streaming,
+                        onLoadMore = { scope.launch { vm.loadMore() } },
+                        onRetry = { scope.launch { vm.loadFirst() } },
+                        onIgnoreError = vm::clearError,
+                        onUserMessageLongPress = { menuMsg = it },
+                    )
+                }
+            }
             // Inline lanes float above the timeline (input stays alive).
             vm.error?.let { msg ->
                 Box(
@@ -194,14 +234,25 @@ fun ChatScreen(
     }
 }
 
-/** Rounded floating input card: text field + send/stop + plan chip. */
+/**
+ * Rounded floating input card: attachment strip + text field + two-row
+ * toolbar (send/stop right, model + thinking + plan chips left).
+ * Mirrors Flutter: model name truncates at 12 chars, plan chip never
+ * squeezed out.
+ */
 @Composable
 private fun InputCard(
     text: String,
     onText: (String) -> Unit,
     streaming: Boolean,
     planMode: Boolean,
+    modelLabel: String,
+    thinkingLabel: String?,
+    attachments: List<String>,
+    onRemoveAttachment: (Int) -> Unit,
     onPlanToggle: () -> Unit,
+    onModelTap: () -> Unit,
+    onThinkingTap: () -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -213,6 +264,25 @@ private fun InputCard(
             .padding(12.dp),
     ) {
         Column(Modifier.padding(10.dp)) {
+            if (attachments.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    attachments.forEachIndexed { i, _ ->
+                        androidx.compose.material3.AssistChip(
+                            onClick = {},
+                            label = { Text("图${i + 1}") },
+                            trailingIcon = {
+                                TextButton(onClick = { onRemoveAttachment(i) }) {
+                                    Text("✕")
+                                }
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
             OutlinedTextField(
                 value = text,
                 onValueChange = onText,
@@ -223,11 +293,18 @@ private fun InputCard(
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onPlanToggle) {
-                    Text(if (planMode) "计划模式·开" else "计划模式")
+                TextButton(onClick = onThinkingTap) {
+                    Text(thinkingLabel ?: "档位")
                 }
-                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onModelTap) {
+                    Text(
+                        if (modelLabel.length > 12) modelLabel.take(12) + "…" else modelLabel,
+                    )
+                }
                 Spacer(Modifier.weight(1f))
+                TextButton(onClick = onPlanToggle) {
+                    Text(if (planMode) "计划·开" else "计划")
+                }
                 if (streaming) {
                     IconButton(onClick = onStop) {
                         Icon(Icons.Filled.Stop, contentDescription = "中断")
@@ -235,16 +312,12 @@ private fun InputCard(
                 } else {
                     IconButton(
                         onClick = onSend,
-                        enabled = text.trim().isNotEmpty(),
+                        enabled = text.trim().isNotEmpty() || attachments.isNotEmpty(),
                     ) {
-                        if (streaming) {
-                            CircularProgressIndicator()
-                        } else {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "发送",
-                            )
-                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "发送",
+                        )
                     }
                 }
             }
