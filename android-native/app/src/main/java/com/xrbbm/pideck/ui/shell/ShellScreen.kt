@@ -192,6 +192,18 @@ fun ShellScreen(
                             sessions = state?.sessions,
                             projects = state?.projects,
                             onSelectSession = { scope.launch { select(it) } },
+                            isDark = isDark,
+                            onToggleTheme = onToggleTheme,
+                            onSearchMessages = {
+                                scope.launch {
+                                    snack.showSnackbar("搜索会话消息：只搜已加载消息（对齐网页）")
+                                }
+                            },
+                            onOpenSkills = {
+                                scope.launch {
+                                    snack.showSnackbar("技能与扩展：只启停，不装卸（对齐网页）")
+                                }
+                            },
                         )
                         loading -> Box(
                             Modifier.fillMaxSize(),

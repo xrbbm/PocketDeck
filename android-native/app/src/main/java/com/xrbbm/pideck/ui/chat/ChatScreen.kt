@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +58,10 @@ fun ChatScreen(
     sessions: List<WebSession>? = null,
     projects: List<com.xrbbm.pideck.core.net.WebProject>? = null,
     onSelectSession: ((WebSession) -> Unit)? = null,
+    isDark: Boolean = false,
+    onToggleTheme: () -> Unit = {},
+    onSearchMessages: () -> Unit = {},
+    onOpenSkills: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val vm = remember(session.id) { ChatViewModel(api, session) }
@@ -78,23 +83,35 @@ fun ChatScreen(
         vm.notice?.let { (_, text) -> snack.showSnackbar(text) }
     }
 
+    var overflow by remember { mutableStateOf(false) }
+    val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            session.title.ifEmpty { session.id },
-                            maxLines = 1,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        val m = vm.model
-                        Text(
-                            (m?.display ?: "模型") +
-                                (vm.thinkingLevel?.let { " · $it" } ?: ""),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                    // Web 1:1: left title + online dot (screenshot 1 header).
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "选择或新建会话",
+                                maxLines = 1,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.foundation.Canvas(
+                                    Modifier.size(6.dp),
+                                ) {
+                                    drawCircle(onlineColor)
+                                }
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "空闲",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
@@ -129,6 +146,45 @@ fun ChatScreen(
                         IconButton(onClick = { scope.launch { vm.stop() } }) {
                             Icon(Icons.Filled.Stop, contentDescription = "中断")
                         }
+                    }
+                    // Web 1:1 right ⋮ menu (screenshot 1): search messages,
+                    // toggle theme, install app (placeholder), skills.
+                    IconButton(onClick = { overflow = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "更多")
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = overflow,
+                        onDismissRequest = { overflow = false },
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("搜索会话消息") },
+                            leadingIcon = { Text("🔍") },
+                            onClick = {
+                                overflow = false
+                                onSearchMessages()
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (isDark) "切换主题 · 浅色" else "切换主题 · 暗色") },
+                            leadingIcon = { Text("🌗") },
+                            onClick = {
+                                overflow = false
+                                onToggleTheme()
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("安装应用") },
+                            leadingIcon = { Text("⬇") },
+                            onClick = { overflow = false },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("技能与扩展") },
+                            leadingIcon = { Text("🧩") },
+                            onClick = {
+                                overflow = false
+                                onOpenSkills()
+                            },
+                        )
                     }
                 },
             )
