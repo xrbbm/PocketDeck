@@ -355,7 +355,10 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
     }
 }
 
-/** Illustrated empty state (skill: never leave a bare hint line). */
+/**
+ * Web 1:1 empty state (screenshot 1): big logo + one-liner hint.
+ * Copy mirrors the web: type below to auto-create, or pick from left.
+ */
 @Composable
 private fun EmptyTimeline() {
     Column(
@@ -363,20 +366,19 @@ private fun EmptyTimeline() {
             .fillMaxWidth()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(72.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.size(88.dp),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Text("💬", style = MaterialTheme.typography.headlineMedium)
+                Text("🤖", style = MaterialTheme.typography.displayMedium)
             }
         }
-        Text("开始新的对话", style = MaterialTheme.typography.titleMedium)
         Text(
-            "发一句开始聊，思考与工具调用会一段段冒出来",
+            "直接输入消息即可自动新建会话开始对话，或从左侧选择项目、现有会话。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
