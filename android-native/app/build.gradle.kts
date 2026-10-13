@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.commonmark)
 
     testImplementation(libs.junit)
 }

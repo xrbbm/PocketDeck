@@ -190,6 +190,7 @@ fun ShellScreen(
                             session = session,
                             onOpenDrawer = { scope.launch { drawer.open() } },
                             sessions = state?.sessions,
+                            projects = state?.projects,
                             onSelectSession = { scope.launch { select(it) } },
                         )
                         loading -> Box(

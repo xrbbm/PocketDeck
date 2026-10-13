@@ -53,12 +53,23 @@ fun ChatScreen(
     onOpenDrawer: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     sessions: List<WebSession>? = null,
+    projects: List<com.xrbbm.pideck.core.net.WebProject>? = null,
     onSelectSession: ((WebSession) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val vm = remember(session.id) { ChatViewModel(api, session) }
     val snack = remember { SnackbarHostState() }
     var menuMsg by remember { mutableStateOf<UiMessage?>(null) }
+    var workspace by remember { mutableStateOf(false) }
+    var previewPath by remember { mutableStateOf<String?>(null) }
+    // Project resolution order: match session in list > session.projectId >
+    // single-project fallback (mirrors Flutter _projectId).
+    val projectId = remember(sessions, session, projects) {
+        sessions?.firstOrNull { it.id == session.id }?.projectId
+            ?.takeIf { it.isNotEmpty() }
+            ?: session.projectId.takeIf { it.isNotEmpty() }
+            ?: projects?.singleOrNull()?.id?.takeIf { it.isNotEmpty() }
+    }
 
     LaunchedEffect(session.id) { vm.start() }
     LaunchedEffect(vm.notice) {
@@ -104,6 +115,12 @@ fun ChatScreen(
                     if (u != null && u.hasWindow) {
                         TextButton(onClick = {}) {
                             Text("${u.percent.toInt()}%")
+                        }
+                    }
+                    // Multi-project mismatch hides the entry (mirrors Flutter).
+                    if (projectId != null) {
+                        IconButton(onClick = { workspace = true }) {
+                            Text("📁")
                         }
                     }
                     if (vm.streaming) {
@@ -237,6 +254,25 @@ fun ChatScreen(
                 ) { Text("重发（回填输入框）") }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (workspace && projectId != null) {
+        com.xrbbm.pideck.ui.workspace.WorkspaceDrawer(
+            api = api,
+            projectId = projectId,
+            onPreviewFile = { previewPath = it },
+            onDismiss = { workspace = false },
+        )
+    }
+    previewPath?.let { path ->
+        if (projectId != null) {
+            com.xrbbm.pideck.ui.workspace.FilePreviewSheet(
+                api = api,
+                projectId = projectId,
+                path = path,
+                onDismiss = { previewPath = null },
+            )
         }
     }
 }
