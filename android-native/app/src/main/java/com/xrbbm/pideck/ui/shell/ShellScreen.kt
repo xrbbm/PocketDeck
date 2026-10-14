@@ -75,6 +75,8 @@ fun ShellScreen(
     var muted by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var newDialog by remember { mutableStateOf(false) }
+    var newProjectDialog by remember { mutableStateOf(false) }
+    var presetProjectId by remember { mutableStateOf<String?>(null) }
     var renameTarget by remember { mutableStateOf<WebSession?>(null) }
     var deleteTarget by remember { mutableStateOf<WebSession?>(null) }
     var confirmUnpair by remember { mutableStateOf(false) }
@@ -134,7 +136,11 @@ fun ShellScreen(
                     error = error,
                     selectedId = selectedId,
                     onSelect = { scope.launch { select(it) } },
-                    onNewSession = { newDialog = true },
+                    onNewProject = { newProjectDialog = true },
+                    onNewSession = { projectId ->
+                        presetProjectId = projectId
+                        newDialog = true
+                    },
                     onRename = { renameTarget = it },
                     onCopy = { s ->
                         scope.launch {
@@ -239,14 +245,33 @@ fun ShellScreen(
         NewSessionDialog(
             api = api,
             projects = state?.projects ?: emptyList(),
-            onDismiss = { newDialog = false },
+            initialProjectId = presetProjectId,
+            lockProject = presetProjectId != null,
+            onDismiss = {
+                newDialog = false
+                presetProjectId = null
+            },
             onCreated = { id ->
                 scope.launch {
                     newDialog = false
+                    presetProjectId = null
                     refresh()
                     store.saveLastSessionId(id)
                     selectedId = id
                     drawer.close()
+                }
+            },
+        )
+    }
+
+    if (newProjectDialog) {
+        NewProjectDialog(
+            api = api,
+            onDismiss = { newProjectDialog = false },
+            onCreated = {
+                scope.launch {
+                    newProjectDialog = false
+                    refresh()
                 }
             },
         )

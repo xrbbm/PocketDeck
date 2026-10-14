@@ -63,7 +63,8 @@ fun SessionsDrawer(
     error: String?,
     selectedId: String?,
     onSelect: (WebSession) -> Unit,
-    onNewSession: () -> Unit,
+    onNewProject: () -> Unit,
+    onNewSession: (String?) -> Unit,
     onRename: (WebSession) -> Unit,
     onCopy: (WebSession) -> Unit,
     onExport: (WebSession) -> Unit,
@@ -106,6 +107,14 @@ fun SessionsDrawer(
             )
             IconButton(onClick = onRefresh) {
                 Text("⟳")
+            }
+            // Web 1:1 top-right +: new project (register path on server).
+            IconButton(
+                onClick = onNewProject,
+                enabled = state != null,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(AppIcons.Add, contentDescription = "新建项目")
             }
         }
         // M3 SearchBar-style field (skill: rounded 28dp + leading icon).
@@ -191,8 +200,12 @@ fun SessionsDrawer(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                // Row +: new session inside this group only.
+                                // Chat group has no projectId (null = builtin chat).
                                 IconButton(
-                                    onClick = onNewSession,
+                                    onClick = {
+                                        onNewSession(if (g.isChat) null else g.id)
+                                    },
                                     enabled = state != null,
                                     modifier = Modifier.size(32.dp),
                                 ) { Text("+") }
@@ -345,6 +358,61 @@ private fun SessionRow(
 }
 
 /**
+ * New project dialog: register a server-local path (web top-right +).
+ */
+@Composable
+fun NewProjectDialog(
+    api: ApiClient,
+    onDismiss: () -> Unit,
+    onCreated: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var path by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新建项目") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = path,
+                    onValueChange = { path = it },
+                    label = { Text("项目路径（服务端本地路径）") },
+                    placeholder = { Text("/home/user/my-project") },
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        busy = true
+                        error = null
+                        try {
+                            if (path.trim().isEmpty()) {
+                                throw com.xrbbm.pideck.core.net.ApiException("请先输入项目路径")
+                            }
+                            api.createProject(path.trim())
+                            onCreated()
+                        } catch (e: Exception) {
+                            error = "$e"
+                            busy = false
+                        }
+                    }
+                },
+                enabled = !busy,
+            ) { Text("创建") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) { Text("取消") }
+        },
+    )
+}
+
+/**
  * New session dialog: pick project (or register path when none) + optional
  * title. Returns the new session id, null on cancel.
  */
@@ -352,12 +420,17 @@ private fun SessionRow(
 fun NewSessionDialog(
     api: ApiClient,
     projects: List<WebProject>,
+    initialProjectId: String? = null,
+    lockProject: Boolean = false,
     onDismiss: () -> Unit,
     onCreated: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    var projectId by remember {
-        mutableStateOf(if (projects.size == 1) projects.first().id else null)
+    var projectId by remember(initialProjectId, projects) {
+        mutableStateOf(
+            initialProjectId?.takeIf { id -> projects.any { it.id == id } }
+                ?: if (projects.size == 1) projects.first().id else null,
+        )
     }
     var path by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
@@ -393,7 +466,17 @@ fun NewSessionDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (projects.isNotEmpty()) {
+                    // Row + passes lockProject: show the fixed project as
+                    // text, no switching (that group only).
+                    if (lockProject) {
+                        val fixed = projects.firstOrNull { it.id == projectId }
+                        Text(
+                            fixed?.name ?: "当前项目",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     projects.forEach { p ->
+                        if (lockProject && p.id != projectId) return@forEach
                         TextButton(onClick = { projectId = p.id }) {
                             if (projectId == p.id) {
                                 Icon(
