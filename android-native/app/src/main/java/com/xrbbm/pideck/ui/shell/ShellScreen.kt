@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -125,7 +126,8 @@ fun ShellScreen(
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet {
+            // Session list takes 80% screen width (keep chat visible behind).
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.8f)) {
                 SessionsDrawer(
                     state = state,
                     loading = loading,
