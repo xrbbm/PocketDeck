@@ -62,6 +62,8 @@ fun SessionsDrawer(
     loading: Boolean,
     error: String?,
     selectedId: String?,
+    expandedGroups: Set<String> = emptySet(),
+    onToggleGroup: ((String, Boolean) -> Unit)? = null,
     onSelect: (WebSession) -> Unit,
     onNewProject: () -> Unit,
     onNewSession: (String?) -> Unit,
@@ -173,15 +175,20 @@ fun SessionsDrawer(
                 // ▷ name, right + (new) and trash only on hover-equivalent.
                 groups.forEach { g ->
                     item(key = "header-${g.id}") {
-                        var open by remember(g.id, query) {
-                            mutableStateOf(true)
+                        // Default collapsed; searching forces open so hits
+                        // stay visible. Single source: persisted set only
+                        // (no local copy, else restart flashes back).
+                        val searching = query.trim().isNotEmpty()
+                        val open = if (searching) true else (g.id in expandedGroups)
+                        fun setOpen(v: Boolean) {
+                            onToggleGroup?.invoke(g.id, v)
                         }
                         Column {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .combinedClickable(
-                                        onClick = { open = !open },
+                                        onClick = { setOpen(!open) },
                                         onLongClick = {},
                                     )
                                     .padding(horizontal = 8.dp, vertical = 2.dp),

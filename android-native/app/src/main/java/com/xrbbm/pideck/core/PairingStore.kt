@@ -25,6 +25,8 @@ class PairingStore(private val context: Context) {
         val Token = stringPreferencesKey("pair_token")
         val LastSessionId = stringPreferencesKey("last_session_id")
         val DarkTheme = booleanPreferencesKey("app_dark_theme")
+        // Drawer group expand state: comma-joined group ids (empty = all collapsed).
+        val ExpandedGroups = stringPreferencesKey("drawer_expanded_groups")
     }
 
     val pairingFlow: Flow<Pairing?> = context.dataStore.data.map { prefs ->
@@ -60,6 +62,18 @@ class PairingStore(private val context: Context) {
 
     suspend fun clearLastSessionId() {
         context.dataStore.edit { prefs -> prefs.remove(Keys.LastSessionId) }
+    }
+
+    suspend fun loadExpandedGroups(): Set<String> {
+        val raw = context.dataStore.data.first()[Keys.ExpandedGroups] ?: ""
+        if (raw.isBlank()) return emptySet()
+        return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    }
+
+    suspend fun saveExpandedGroups(ids: Set<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.ExpandedGroups] = ids.joinToString(",")
+        }
     }
 
     suspend fun loadDarkTheme(): Boolean =

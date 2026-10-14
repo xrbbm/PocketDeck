@@ -83,6 +83,8 @@ fun ShellScreen(
     var renameTarget by remember { mutableStateOf<WebSession?>(null) }
     var deleteTarget by remember { mutableStateOf<WebSession?>(null) }
     var confirmUnpair by remember { mutableStateOf(false) }
+    // Drawer group expand memory: default collapsed, survives restarts.
+    var expandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     suspend fun refresh() {
         if (refreshing || muted) return
@@ -113,6 +115,7 @@ fun ShellScreen(
     }
 
     LaunchedEffect(pairing.baseUrl) {
+        expandedGroups = store.loadExpandedGroups()
         refresh()
         while (isActive) {
             delay(5000)
@@ -138,6 +141,12 @@ fun ShellScreen(
                     loading = loading,
                     error = error,
                     selectedId = selectedId,
+                    expandedGroups = expandedGroups,
+                    onToggleGroup = { id, open ->
+                        val next = if (open) expandedGroups + id else expandedGroups - id
+                        expandedGroups = next
+                        scope.launch { store.saveExpandedGroups(next) }
+                    },
                     onSelect = { scope.launch { select(it) } },
                     onNewProject = { newProjectDialog = true },
                     onNewSession = { projectId ->
