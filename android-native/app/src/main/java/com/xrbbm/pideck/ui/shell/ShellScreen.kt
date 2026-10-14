@@ -76,7 +76,10 @@ fun ShellScreen(
     var refreshing by remember { mutableStateOf(false) }
     var newDialog by remember { mutableStateOf(false) }
     var newProjectDialog by remember { mutableStateOf(false) }
+    // Row + preset: null = Chat builtin group, non-null = project id.
+    // Null = no dialog (top-right + goes to new project instead).
     var presetProjectId by remember { mutableStateOf<String?>(null) }
+    var lockSessionProject by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<WebSession?>(null) }
     var deleteTarget by remember { mutableStateOf<WebSession?>(null) }
     var confirmUnpair by remember { mutableStateOf(false) }
@@ -139,6 +142,7 @@ fun ShellScreen(
                     onNewProject = { newProjectDialog = true },
                     onNewSession = { projectId ->
                         presetProjectId = projectId
+                        lockSessionProject = true
                         newDialog = true
                     },
                     onRename = { renameTarget = it },
@@ -246,15 +250,17 @@ fun ShellScreen(
             api = api,
             projects = state?.projects ?: emptyList(),
             initialProjectId = presetProjectId,
-            lockProject = presetProjectId != null,
+            lockProject = lockSessionProject,
             onDismiss = {
                 newDialog = false
                 presetProjectId = null
+                lockSessionProject = false
             },
             onCreated = { id ->
                 scope.launch {
                     newDialog = false
                     presetProjectId = null
+                    lockSessionProject = false
                     refresh()
                     store.saveLastSessionId(id)
                     selectedId = id

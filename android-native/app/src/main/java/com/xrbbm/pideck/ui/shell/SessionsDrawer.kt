@@ -428,10 +428,20 @@ fun NewSessionDialog(
     val scope = rememberCoroutineScope()
     var projectId by remember(initialProjectId, projects) {
         mutableStateOf(
-            initialProjectId?.takeIf { id -> projects.any { it.id == id } }
+            initialProjectId?.takeIf { id ->
+                id == com.xrbbm.pideck.core.net.CHAT_PROJECT_ID ||
+                    projects.any { it.id == id }
+            }
                 ?: if (projects.size == 1) projects.first().id else null,
         )
     }
+    // Chat row passes null (builtin group): resolve to the real
+    // builtin-chat project id so submit() skips the path branch.
+    val chatProjectId = remember(projects) {
+        projects.firstOrNull { it.id == com.xrbbm.pideck.core.net.CHAT_PROJECT_ID }?.id
+            ?: com.xrbbm.pideck.core.net.CHAT_PROJECT_ID
+    }
+    val effectiveProjectId = projectId ?: if (lockProject) chatProjectId else null
     var path by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -441,7 +451,7 @@ fun NewSessionDialog(
         busy = true
         error = null
         try {
-            var pid = projectId
+            var pid = effectiveProjectId
             if (pid == null) {
                 if (projects.isNotEmpty()) throw com.xrbbm.pideck.core.net.ApiException("请先选择项目")
                 if (path.trim().isEmpty()) {
@@ -468,17 +478,17 @@ fun NewSessionDialog(
                 if (projects.isNotEmpty()) {
                     // Row + passes lockProject: show the fixed project as
                     // text, no switching (that group only).
-                    if (lockProject) {
-                        val fixed = projects.firstOrNull { it.id == projectId }
+                    if (lockProject && effectiveProjectId != null && projectId != null) {
+                        val fixed = projects.firstOrNull { it.id == effectiveProjectId }
                         Text(
                             fixed?.name ?: "当前项目",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     projects.forEach { p ->
-                        if (lockProject && p.id != projectId) return@forEach
+                        if (lockProject && p.id != effectiveProjectId) return@forEach
                         TextButton(onClick = { projectId = p.id }) {
-                            if (projectId == p.id) {
+                            if (effectiveProjectId == p.id) {
                                 Icon(
                                     AppIcons.Check,
                                     contentDescription = null,
