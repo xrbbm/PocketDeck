@@ -1,5 +1,6 @@
 package com.xrbbm.pideck.ui.chat
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,6 +89,7 @@ fun ChatScreen(
     }
 
     var overflow by remember { mutableStateOf(false) }
+    var showUsage by remember { mutableStateOf(false) }
     val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
@@ -133,11 +135,18 @@ fun ChatScreen(
                 },
                 actions = {
                     // Context ring: only with a runtime window (mirrors ContextRing).
+                    // Tap opens the usage sheet (mirrors Flutter _showUsage).
                     val u = vm.usage
                     if (u != null && u.hasWindow) {
-                        TextButton(onClick = {}) {
-                            Text("${u.percent.toInt()}%")
-                        }
+                        // Direct clickable text: TextButton min-size can miss
+                        // taps inside the dense 40dp bar (sim verified).
+                        Text(
+                            "${u.percent.toInt()}%",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier
+                                .clickable { showUsage = true }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                        )
                     }
                     // Multi-project mismatch hides the entry (mirrors Flutter).
                     if (projectId != null) {
@@ -361,6 +370,42 @@ fun ChatScreen(
                     }
                 }
             }
+        }
+    }
+
+    // Context usage sheet (mirrors Flutter _showUsage + web dialog):
+    // percent + tokens/window, overflow warning in error color.
+    if (showUsage) {
+        val u = vm.usage
+        if (u != null) {
+            ModalBottomSheet(onDismissRequest = { showUsage = false }) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("上下文用量", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "${"%.1f".format(u.percent)}% · " +
+                            "${u.contextTokens ?: "–"} / ${u.contextWindow ?: "–"} tokens",
+                    )
+                    if (u.inputTokens != null || u.outputTokens != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "输入 ${u.inputTokens ?: "–"} · 输出 ${u.outputTokens ?: "–"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (u.contextOverflow) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "已溢出，回答可能丢失早段记忆",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Spacer(Modifier.height(24.dp))
+                }
+            }
+        } else {
+            showUsage = false
         }
     }
 
