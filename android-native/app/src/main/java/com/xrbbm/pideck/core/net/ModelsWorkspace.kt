@@ -1,6 +1,7 @@
 package com.xrbbm.pideck.core.net
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 
 /** Session file-change snapshot entry. */
 data class SessionFileChange(
@@ -182,6 +183,52 @@ data class WebFileNodeLite(
             name = json.str("name"),
             relativePath = json.str("relativePath"),
             type = json.str("type", "file"),
+        )
+    }
+}
+
+/** Skill entry (GET /api/skills). */
+data class SkillSummary(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val sourceId: String = "",
+    val sourceLabel: String = "",
+    val enabled: Boolean = true,
+    val valid: Boolean = true,
+) {
+    companion object {
+        fun fromJson(json: JsonObject) = SkillSummary(
+            id = json.str("id"),
+            name = json.str("name"),
+            description = json.str("description"),
+            sourceId = json.str("sourceId"),
+            sourceLabel = json.str("sourceLabel"),
+            enabled = json.bool("enabled", true),
+            valid = json.bool("valid", true),
+        )
+    }
+}
+
+/** Extension entry (GET /api/extensions). */
+data class ExtensionSummary(
+    val id: String,
+    val source: String,
+    val scope: String = "user",
+    val currentVersion: String = "",
+    val latestVersion: String = "",
+    val hasUpdate: Boolean = false,
+    val enabled: Boolean = true,
+) {
+    companion object {
+        fun fromJson(json: JsonObject) = ExtensionSummary(
+            id = json.str("id"),
+            source = json.str("source"),
+            scope = json.str("scope", "user"),
+            currentVersion = json.str("currentVersion"),
+            latestVersion = json.str("latestVersion"),
+            hasUpdate = json.bool("hasUpdate"),
+            enabled = json.bool("enabled", true),
         )
     }
 }

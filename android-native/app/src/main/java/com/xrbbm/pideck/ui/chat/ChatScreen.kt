@@ -90,6 +90,9 @@ fun ChatScreen(
 
     var overflow by remember { mutableStateOf(false) }
     var showUsage by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    var showInstall by remember { mutableStateOf(false) }
+    var showSkills by remember { mutableStateOf(false) }
     val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
@@ -179,7 +182,7 @@ fun ChatScreen(
                             },
                             onClick = {
                                 overflow = false
-                                onSearchMessages()
+                                showSearch = true
                             },
                         )
                         androidx.compose.material3.DropdownMenuItem(
@@ -200,7 +203,10 @@ fun ChatScreen(
                             leadingIcon = {
                                 Icon(AppIcons.Download, contentDescription = null)
                             },
-                            onClick = { overflow = false },
+                            onClick = {
+                                overflow = false
+                                showInstall = true
+                            },
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("技能与扩展") },
@@ -209,7 +215,7 @@ fun ChatScreen(
                             },
                             onClick = {
                                 overflow = false
-                                onOpenSkills()
+                                showSkills = true
                             },
                         )
                     }
@@ -407,6 +413,21 @@ fun ChatScreen(
         } else {
             showUsage = false
         }
+    }
+
+    if (showSearch) {
+        MessageSearchSheet(messages = vm.messages, onDismiss = { showSearch = false })
+    }
+    if (showInstall) {
+        InstallAppSheet(onDismiss = { showInstall = false })
+    }
+    if (showSkills) {
+        SkillsExtensionsSheet(
+            api = api,
+            scope = scope,
+            onError = { scope.launch { snack.showSnackbar(it) } },
+            onDismiss = { showSkills = false },
+        )
     }
 
     menuMsg?.let { m ->

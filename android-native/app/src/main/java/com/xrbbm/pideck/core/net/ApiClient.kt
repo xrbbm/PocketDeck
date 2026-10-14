@@ -473,6 +473,42 @@ class ApiClient(
         return json.objOrNull("detail")?.strOrNull("promptContent") ?: ""
     }
 
+    suspend fun fetchSkills(): List<SkillSummary> {
+        val json = getJson("/api/skills")
+        return (json["skills"] as? JsonArray).orEmpty().mapNotNull {
+            (it as? JsonObject)?.let(SkillSummary::fromJson)
+        }
+    }
+
+    suspend fun toggleSkill(name: String, sourceId: String, enabled: Boolean) {
+        postJson(
+            "/api/skills/toggle",
+            buildJsonObject {
+                put("name", name)
+                put("sourceId", sourceId)
+                put("enabled", enabled)
+            },
+        )
+    }
+
+    suspend fun fetchExtensions(): List<ExtensionSummary> {
+        val json = getJson("/api/extensions")
+        return (json["extensions"] as? JsonArray).orEmpty().mapNotNull {
+            (it as? JsonObject)?.let(ExtensionSummary::fromJson)
+        }
+    }
+
+    suspend fun toggleExtension(source: String, scope: String, enabled: Boolean) {
+        postJson(
+            "/api/extensions/toggle",
+            buildJsonObject {
+                put("source", source)
+                put("scope", scope)
+                put("enabled", enabled)
+            },
+        )
+    }
+
     suspend fun fetchSessionFileChanges(sessionId: String): List<SessionFileChange> {
         val json = getJson("/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/file-changes")
         return (json["changes"] as? JsonArray).orEmpty().mapNotNull {
