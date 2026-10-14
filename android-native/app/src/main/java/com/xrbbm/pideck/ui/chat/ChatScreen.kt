@@ -533,8 +533,25 @@ private fun InputCard(
                     ),
                 )
             }
-            // Model line on top: full name, no truncation (long names
-            // get their own row; action buttons stay on the bottom row).
+            // Model name gets its own top row, full width (no truncation).
+            TextButton(
+                onClick = onModelTap,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 4.dp,
+                    vertical = 0.dp,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    modelLabel,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            // Bottom row: agent + thinking left, actions right.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -545,35 +562,12 @@ private fun InputCard(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(
-                    onClick = onModelTap,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 4.dp,
-                        vertical = 0.dp,
-                    ),
-                    modifier = Modifier.weight(1f, fill = false),
-                ) {
-                    Text(
-                        modelLabel,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
                 thinkingLabel?.let {
                     TextButton(onClick = onThinkingTap) { Text(it) }
                 }
                 if (planMode) {
                     TextButton(onClick = onPlanToggle) { Text("计划·开") }
                 }
-            }
-            Spacer(Modifier.height(4.dp))
-            // Bottom action row: prompt / image / send only.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
                 Spacer(Modifier.weight(1f))
                 IconButton(
                     onClick = onPromptTap,
