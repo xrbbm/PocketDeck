@@ -25,7 +25,7 @@ SSE 的 GET 允许 `?token=` 查询参数（`Pairing.token` 字段预留）。
 | POST | /api/sessions/:id/copy | — | `{result:{session:{id}}}` | 复制会话 |
 | GET | /api/sessions/:id/messages/page | `?before=&pageSize=` | `SessionMessagePage` | 历史分页（`before` 为上页 `nextBefore`，null=到顶；`unavailable` 为专用错误态） |
 | POST | /api/chat | 见下 | SSE 流（同响应） | 发消息 |
-| GET | /api/sessions/:id/stream | — | SSE 流 | 独立订阅（备用） |
+| GET | /api/sessions/:id/stream | — | SSE 流 | 独立订阅（远程运行时跟随：忙时订阅、落定/15s刷历史；本地发送时关闭避双写） |
 | POST | /api/ui-response | `{sessionId,requestId,agentId,runtimeGeneration,response}` | — | 审批问答应答（只取 `sessionId == 当前会话` 的请求） |
 | POST | /api/sessions/:id/runtime/stop | `{target}` | — | 优雅停止 |
 | POST | /api/sessions/:id/runtime/abort | `{target}` | — | 立即打断（流式中停止按钮走这个） |
