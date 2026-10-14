@@ -91,7 +91,6 @@ fun ChatScreen(
     var overflow by remember { mutableStateOf(false) }
     var showUsage by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
-    var showInstall by remember { mutableStateOf(false) }
     var showSkills by remember { mutableStateOf(false) }
     val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
@@ -196,16 +195,6 @@ fun ChatScreen(
                             onClick = {
                                 overflow = false
                                 onToggleTheme()
-                            },
-                        )
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("安装应用") },
-                            leadingIcon = {
-                                Icon(AppIcons.Download, contentDescription = null)
-                            },
-                            onClick = {
-                                overflow = false
-                                showInstall = true
                             },
                         )
                         androidx.compose.material3.DropdownMenuItem(
@@ -417,9 +406,6 @@ fun ChatScreen(
 
     if (showSearch) {
         MessageSearchSheet(messages = vm.messages, onDismiss = { showSearch = false })
-    }
-    if (showInstall) {
-        InstallAppSheet(onDismiss = { showInstall = false })
     }
     if (showSkills) {
         SkillsExtensionsSheet(
