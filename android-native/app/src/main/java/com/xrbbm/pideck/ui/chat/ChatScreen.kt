@@ -92,9 +92,10 @@ fun ChatScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         topBar = {
-            // Slim header (user screenshot 2): single-line title + inline
-            // status dot, compact height via SmallTopAppBar defaults.
+            // Slim header: dense 40dp bar pinned to top (no M3 64dp slack).
             androidx.compose.material3.CenterAlignedTopAppBar(
+                expandedHeight = 40.dp,
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
