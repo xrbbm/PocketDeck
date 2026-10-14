@@ -427,7 +427,8 @@ private fun ExecutionToolRow(part: UiPart.Tool) {
             )
         }
         if (open) {
-            FullToolCard(part = part)
+            // L3 inline body only: no nested header card (fix double card).
+            ToolBody(part = part)
         }
     }
 }

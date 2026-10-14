@@ -39,6 +39,25 @@ import com.xrbbm.pideck.core.net.UiPart
 import com.xrbbm.pideck.core.net.prettyToolValue
 import com.xrbbm.pideck.core.net.toolSummary
 
+/** L3 tool body only: input/output/error blocks, no header card. */
+@Composable
+fun ToolBody(part: UiPart.Tool, modifier: Modifier = Modifier) {
+    val errorText = prettyToolValue(
+        part.errorText?.let {
+            kotlinx.serialization.json.JsonPrimitive(it)
+        },
+    )
+    val inputText = prettyToolValue(part.input)
+    val outputText = prettyToolValue(part.output)
+    Column(modifier.fillMaxWidth()) {
+        if (errorText.isNotEmpty()) {
+            ValueBlock(label = "错误", text = errorText, isError = true)
+        }
+        if (inputText.isNotEmpty()) ValueBlock(label = "输入", text = inputText)
+        if (outputText.isNotEmpty()) ValueBlock(label = "输出", text = outputText)
+    }
+}
+
 /**
  * Tool call card (mirrors WebToolCard): icon + name + status, expandable
  * input/output. Disabled from expanding when there is no body.
