@@ -533,7 +533,8 @@ private fun InputCard(
                     ),
                 )
             }
-            // Web 1:1 bottom row: Pi pill / model pill / web / image / send.
+            // Model line on top: full name, no truncation (long names
+            // get their own row; action buttons stay on the bottom row).
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -544,21 +545,35 @@ private fun InputCard(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                // Short model name (user screenshot: muse-sp...): cap 8.
                 TextButton(
                     onClick = onModelTap,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 4.dp,
                         vertical = 0.dp,
                     ),
+                    modifier = Modifier.weight(1f, fill = false),
                 ) {
                     Text(
-                        if (modelLabel.length > 8) modelLabel.take(8) + "..." else modelLabel,
+                        modelLabel,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
+                thinkingLabel?.let {
+                    TextButton(onClick = onThinkingTap) { Text(it) }
+                }
+                if (planMode) {
+                    TextButton(onClick = onPlanToggle) { Text("计划·开") }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            // Bottom action row: prompt / image / send only.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Spacer(Modifier.weight(1f))
                 IconButton(
                     onClick = onPromptTap,
@@ -597,23 +612,6 @@ private fun InputCard(
                     ),
                 ) {
                     Text(if (streaming) "停止" else "发送")
-                }
-            }
-            // Thinking-level + plan stay one tap away: compact second row
-            // (web keeps them in pickers; keep visible but subordinate).
-            if (planMode || thinkingLabel != null) {
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    thinkingLabel?.let {
-                        TextButton(onClick = onThinkingTap) { Text(it) }
-                    }
-                    if (planMode) {
-                        TextButton(onClick = onPlanToggle) { Text("计划·开") }
-                    }
                 }
             }
         }
