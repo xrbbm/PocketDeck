@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Terminal
@@ -69,8 +70,9 @@ object AppIcons {
     val CheckCircle = Icons.Filled.CheckCircle
     val Unchecked = Icons.Filled.RadioButtonUnchecked
     val Web = Icons.Filled.Public
+    // Prompt library entry: four-point sparkle (user asked to drop the globe).
+    val Prompt = Icons.Filled.AutoAwesome
     val Image = Icons.Filled.Image
-    val Prompt = Icons.Filled.TipsAndUpdates
     val Robot = Icons.Filled.SmartToy
     val Brain = Icons.Filled.Psychology
     val Wrench = Icons.Filled.Build

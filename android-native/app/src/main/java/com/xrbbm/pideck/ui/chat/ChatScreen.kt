@@ -589,7 +589,7 @@ private fun InputCard(
                     modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
-                        AppIcons.Web,
+                        AppIcons.Prompt,
                         contentDescription = "提示词库",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp),

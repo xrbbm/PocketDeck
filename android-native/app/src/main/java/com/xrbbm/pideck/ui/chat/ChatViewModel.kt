@@ -103,6 +103,10 @@ class ChatViewModel(
     private var pollJob: Job? = null
     private var runtimeGen: Int? = null
     private var usageAt: Long = 0
+    // Model catalog cache: session record only carries the triple, levels
+    // come from /api/models (muse-spark has 5, agnes has 7). Loaded once
+    // at start so the thinking sheet shows the actual model's levels.
+    private var catalog: List<AvailableModel>? = null
     private var externalId: String? = null
     private var lastBusy: Boolean = false
     private var refreshing: Boolean = false
@@ -117,6 +121,12 @@ class ChatViewModel(
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             loadFirst()
+            try {
+                catalog = api.fetchModels()
+                catalog?.let { enrichModel(it) }
+            } catch (_: Exception) {
+                // Catalog failure keeps the record triple; sheets fall back.
+            }
             var tick = 0
             var refreshTick = 0
             while (isActive) {
@@ -251,7 +261,10 @@ class ChatViewModel(
         val cur = model
         if (record.modelId != null && record.modelProvider != null) {
             if (cur == null || cur.id != record.modelId || cur.provider != record.modelProvider) {
-                model = AvailableModel(
+                val cached = catalog?.firstOrNull {
+                    it.id == record.modelId && it.provider == record.modelProvider
+                }
+                model = cached ?: AvailableModel(
                     id = record.modelId,
                     provider = record.modelProvider,
                     name = record.modelName,
@@ -261,6 +274,15 @@ class ChatViewModel(
         if (record.thinkingLevel != null && record.thinkingLevel != thinkingLevel) {
             thinkingLevel = record.thinkingLevel
         }
+    }
+
+    /** Fill model levels from the catalog (record triple has none). */
+    private fun enrichModel(models: List<AvailableModel>) {
+        val cur = model ?: return
+        val full = models.firstOrNull {
+            it.id == cur.id && it.provider == cur.provider
+        } ?: return
+        model = full
     }
 
     private fun startExternal() {
