@@ -408,6 +408,68 @@ class ApiClient(
         errors.tryReceive().getOrNull()?.let { throw it }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * External session stream: mirrors web useExternalSessionStream.
+     *
+     * GET-only SSE subscribe for runs started elsewhere (other device /
+     * web / previous process). Emits live frames; completes on [DONE] /
+     * finish. Local send keeps its own POST /api/chat flow so the two
+     * never double-write.
+     */
+    fun streamSession(sessionId: String): Flow<JsonObject> = flow {
+        // Long-lived subscribe: server pings sparsely (>15s), so the shared
+        // 15s read timeout would kill an idle-but-healthy stream. No timeout.
+        val streamHttp = http.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
+        val req = Request.Builder()
+            .url(url("/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/stream")).apply {
+                headers().forEach { (k, v) -> addHeader(k, v) }
+                addHeader("Accept", "text/event-stream")
+            }.get().build()
+        val factory = EventSources.createFactory(http)
+        val splitter = SseSplitter()
+        val frames = kotlinx.coroutines.channels.Channel<JsonObject>(capacity = 64)
+        val errors = kotlinx.coroutines.channels.Channel<ApiException>(capacity = 1)
+        val listener = object : okhttp3.sse.EventSourceListener() {
+            override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
+                val split = splitter.push("data: $data\n\n")
+                for (frame in split.frames) {
+                    if (frame.strOrNull("type") == "error") {
+                        errors.trySend(
+                            ApiException(frame.strOrNull("errorText") ?: "Agent 运行失败"),
+                        )
+                        eventSource.cancel()
+                        return
+                    }
+                    frames.trySend(frame)
+                }
+                if (split.done) {
+                    eventSource.cancel()
+                    frames.close()
+                }
+            }
+
+            override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
+                // Idle subscribe drops are silent: caller treats empty flow
+                // as no live frames, next refresh converges.
+                frames.close()
+            }
+
+            override fun onClosed(eventSource: EventSource) {
+                frames.close()
+            }
+        }
+        EventSources.createFactory(streamHttp).newEventSource(req, listener)
+        for (frame in frames) {
+            errors.tryReceive().getOrNull()?.let { throw it }
+            emit(frame)
+        }
+        errors.tryReceive().getOrNull()?.let { throw it }
+    }.flowOn(Dispatchers.IO)
+
     suspend fun editRuntimeMessage(
         sessionId: String,
         agentId: String,

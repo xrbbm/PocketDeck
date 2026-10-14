@@ -112,7 +112,7 @@ fun ChatScreen(
                         Spacer(Modifier.width(6.dp))
                         // Status follows runtime + streaming (was hardcoded idle).
                         // running/starting/streaming = 运行中(blue), else 空闲.
-                        val busy = vm.streaming || (vm.runtime?.isBusy == true)
+                        val busy = vm.streaming || vm.externalStreaming || (vm.runtime?.isBusy == true)
                         val statusColor = if (busy) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -168,7 +168,7 @@ fun ChatScreen(
                             )
                         }
                     }
-                    if (vm.streaming) {
+                    if (vm.streaming || vm.externalStreaming) {
                         IconButton(onClick = { scope.launch { vm.stop() } }) {
                             Icon(Icons.Filled.Stop, contentDescription = "中断")
                         }
@@ -252,7 +252,7 @@ fun ChatScreen(
                 InputCard(
                     text = vm.inputText,
                     onText = vm::onInputChange,
-                    streaming = vm.streaming,
+                    streaming = vm.streaming || vm.externalStreaming,
                     attaching = attaching,
                     planMode = vm.planMode,
                     modelLabel = vm.model?.display ?: "模型",
@@ -337,7 +337,7 @@ fun ChatScreen(
                         error = null,
                         unavailable = null,
                         approvalSeq = vm.approvalSeq,
-                        streaming = vm.streaming,
+                        streaming = vm.streaming || vm.externalStreaming,
                         onLoadMore = { scope.launch { vm.loadMore() } },
                         onRetry = { scope.launch { vm.loadFirst() } },
                         onIgnoreError = vm::clearError,

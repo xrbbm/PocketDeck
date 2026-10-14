@@ -15,6 +15,7 @@ import com.xrbbm.pideck.core.net.WebRuntime
 import com.xrbbm.pideck.core.net.WebSession
 import com.xrbbm.pideck.core.net.WebContextUsage
 import com.xrbbm.pideck.core.net.AvailableModel
+import com.xrbbm.pideck.core.net.strOrNull
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -71,6 +72,11 @@ class ChatViewModel(
 
     var streaming by mutableStateOf(false)
         private set
+    // External live tail: runs started elsewhere (web / other device).
+    // Web 1:1: local send owns its POST flow, external subscribe only
+    // runs while local is idle (enabled = session && !streaming).
+    var externalStreaming by mutableStateOf(false)
+        private set
     var pendingUi by mutableStateOf<WebPendingUiRequest?>(null)
         private set
     var runtime by mutableStateOf<WebRuntime?>(null)
@@ -93,9 +99,13 @@ class ChatViewModel(
         private set
 
     private var streamJob: Job? = null
+    private var externalJob: Job? = null
     private var pollJob: Job? = null
     private var runtimeGen: Int? = null
     private var usageAt: Long = 0
+    private var externalId: String? = null
+    private var lastBusy: Boolean = false
+    private var refreshing: Boolean = false
 
     // Draft box (per-session, process-level) mirrors ChatDraftBox.
     var inputText by mutableStateOf(DraftBox.text(session.id))
@@ -108,12 +118,23 @@ class ChatViewModel(
         pollJob = viewModelScope.launch {
             loadFirst()
             var tick = 0
+            var refreshTick = 0
             while (isActive) {
                 delay(3000)
                 tick++
                 val idle = runtime == null && pendingUi == null && !streaming
                 if (idle && tick % 3 != 1) continue
                 pollState()
+                // Busy fallback refresh: the external stream only carries
+                // the live tail; settled turns land via history. Refresh
+                // every ~15s while remote is busy (silent, keeps the tail).
+                val busy = runtime?.isBusy == true
+                if (busy && !streaming) {
+                    refreshTick++
+                    if (refreshTick % 5 == 0) refreshAfterSettle()
+                } else {
+                    refreshTick = 0
+                }
             }
         }
     }
@@ -189,8 +210,14 @@ class ChatViewModel(
             val pending = state.pendingUiOf(session.id)
             val had = pendingUi?.requestId
             val rt = state.runtimeOf(session.id)
+            val busy = rt?.isBusy == true
             pendingUi = pending
             runtime = rt
+            // Web 1:1 external follow: subscribe while remote is busy
+            // and local is idle; busy->idle settles with a history refresh.
+            if (busy && !streaming) startExternal() else stopExternal()
+            if (lastBusy && !busy && !streaming) refreshAfterSettle()
+            lastBusy = busy
             adoptSessionRecord(state.sessions)
             if (rt == null) {
                 usage = null
@@ -236,12 +263,81 @@ class ChatViewModel(
         }
     }
 
-    /** Stop: cancel local collection first (keep arrived content), then abort. */
+    private fun startExternal() {
+        if (externalJob != null || streaming) return
+        val draft = StreamDraft()
+        val id = "external-${System.currentTimeMillis()}"
+        externalId = id
+        externalStreaming = false
+        externalJob = viewModelScope.launch {
+            try {
+                api.streamSession(session.id).collect { frame ->
+                    if (frame.strOrNull("type") == "start" && !draft.isEmpty) {
+                        // New remote turn over a finished tail: reset like web.
+                        return@collect
+                    }
+                    draft.applyFrame(frame)
+                    if (draft.isEmpty) return@collect
+                    externalStreaming = true
+                    val ui = draft.toUiMessage(id)
+                    messages = messages.filter { it.id != id } + ui
+                }
+            } catch (_: Exception) {
+                // Idle subscribe drops stay silent; next poll converges.
+            } finally {
+                val had = !draft.isEmpty
+                externalJob = null
+                externalStreaming = false
+                messages = messages.filter { it.id != id }
+                if (had) refreshAfterSettle()
+            }
+        }
+    }
+
+    private fun stopExternal() {
+        externalJob?.cancel()
+        externalJob = null
+        externalStreaming = false
+        externalId?.let { id ->
+            externalId = null
+            messages = messages.filter { it.id != id }
+        }
+    }
+
+    private suspend fun refreshAfterSettle() {
+        if (refreshing || streaming) return
+        refreshing = true
+        try {
+            val page: MessagePage = api.fetchMessagePage(session.id)
+            // Keep locally paged-up head: only refresh when the first page
+            // still covers the timeline (hasMore=false), else next open
+            // converges without clobbering the pulled-up history.
+            if (!page.hasMore) {
+                messages = page.messages
+                nextBefore = page.nextBefore
+                unavailable = page.unavailable
+                error = null
+            }
+        } catch (_: Exception) {
+            // Silent: keeps the live tail instead of erroring the body.
+        } finally {
+            refreshing = false
+        }
+    }
+
+    /**
+     * Stop: cancel local collection first (keep arrived content), then abort.
+     * External follow also stops here (web parity: header stop aborts the
+     * remote run, not just the local tail).
+     */
     suspend fun stop() {
-        val job = streamJob ?: return
-        job.cancel()
+        val job = streamJob
+        val following = externalJob != null
+        if (job == null && !following) return
+        job?.cancel()
         streamJob = null
         streaming = false
+        stopExternal()
         val rt = runtime ?: return
         try {
             api.abortRuntime(rt.sessionId, rt.agentId, rt.runtimeGeneration ?: 0)
@@ -277,6 +373,7 @@ class ChatViewModel(
         attachments = emptyList()
         DraftBox.clear(session.id)
         streaming = true
+        stopExternal()
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             try {
@@ -421,6 +518,7 @@ class ChatViewModel(
         saveDraft()
         pollJob?.cancel()
         streamJob?.cancel()
+        externalJob?.cancel()
     }
 }
 
