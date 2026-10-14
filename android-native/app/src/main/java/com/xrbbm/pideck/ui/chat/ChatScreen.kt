@@ -110,12 +110,20 @@ fun ChatScreen(
                             modifier = Modifier.weight(1f, fill = false),
                         )
                         Spacer(Modifier.width(6.dp))
+                        // Status follows runtime + streaming (was hardcoded idle).
+                        // running/starting/streaming = 运行中(blue), else 空闲.
+                        val busy = vm.streaming || (vm.runtime?.isBusy == true)
+                        val statusColor = if (busy) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            onlineColor
+                        }
                         androidx.compose.foundation.Canvas(Modifier.size(6.dp)) {
-                            drawCircle(onlineColor)
+                            drawCircle(statusColor)
                         }
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            "空闲",
+                            if (busy) "运行中" else "空闲",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
