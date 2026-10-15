@@ -3,12 +3,12 @@
 PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机上接着聊——同一个 Wi-Fi 下扫个码，打开就是上次的会话。
 
 桌面端（上游）：[ayuayue/PiDeck](https://github.com/ayuayue/PiDeck)。
-版本号跟着桌面端走，`-p` 后面是手机端自己的第几版：比如 `v0.9.0-p1`，就是对着桌面端 `v0.9.0` 做的第一版。
+版本号跟着桌面端走，`-n` 后面是原生端自己的第几版：比如 `v0.9.0-n1`，就是对着桌面端 `v0.9.0` 做的第一版。
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Android-lightgrey)
-![Flutter](https://img.shields.io/badge/Flutter-3.47-blue)
-![Version](https://img.shields.io/badge/version-v0.9.0--p2-blue)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4-blue)
+![Version](https://img.shields.io/badge/version-v0.9.0--n1-blue)
 
 ## 📑 目录
 
@@ -103,22 +103,24 @@ PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机
 
 ## 🧰 快速开始（从源码运行）
 
-要 Flutter stable（实测过 `3.47.7`）+ Android SDK。
+要 Android Studio（或命令行 `gradle`）+ Android SDK，主线是 `android-native/`（Kotlin + Jetpack Compose）。
 
 ```bash
-flutter pub get
-flutter run
+cd android-native
+./gradlew :app:assembleDebug
 ```
 
 跑起来后同样扫码配对。自己打 release 包：
 
 ```bash
-flutter build apk --release
+cd android-native
+./gradlew :app:assembleRelease
 ```
 
-包在 `build/app/outputs/flutter-apk/app-release.apk`。
+包在 `android-native/app/build/outputs/apk/release/app-release.apk`。
 想要正式签名就把 `android/key.properties.example` 复制成 `android/key.properties` 填好；
 不填也能打，就是 debug 签名，和正式包互相覆盖不了。
+`archive-flutter/` 是 Flutter 旧实现归档，只读参考，不编译。
 
 ## ❓ 常见问题 FAQ
 
@@ -152,13 +154,12 @@ flutter build apk --release
 项目结构：
 
 ```txt
-lib/
-├─ main.dart            # 入口 + 深浅两套主题
-├─ pair_page.dart       # 扫码配对
-├─ pairing_store.dart   # 配对地址存本地
-├─ api/                 # 网络层：REST + SSE + 消息映射
-└─ pages/               # 聊天页 / 抽屉 / 工作区 / 审批卡 / 工具卡
-test/                   # 跟实现一一对应的单测（73 个）
+android-native/         # 主线：Kotlin + Compose，独立 Gradle 根
+├─ app/src/main/…/pideck/
+│  ├─ core/             # 扫码解析 + 配对存储 + REST/SSE 网络层
+│  └─ ui/               # 聊天 / 抽屉 / 工作区 / 配对 / 主题
+├─ app/src/test/        # 单测（56 个）
+archive-flutter/        # Flutter 旧实现归档，只读参考，不编译
 docs/api-contract.md    # 接口契约，唯一真相源
 ```
 
@@ -166,8 +167,8 @@ docs/api-contract.md    # 接口契约，唯一真相源
 每次改完两条必须过：
 
 ```bash
-flutter analyze    # 必须干净
-flutter test       # 全量通过
+./gradlew :app:testDebugUnitTest    # 全量通过（android-native/ 下跑）
+./gradlew :app:assembleRelease      # release 包能打出
 ```
 
 ## License

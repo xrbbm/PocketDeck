@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.core.net.FileContentResult
+import com.xrbbm.pideck.ui.chat.MarkdownBody
 
 /** File preview size cap (mirrors server 512KB bound; change here only). */
 const val FILE_PREVIEW_LIMIT_KB = 512
@@ -217,7 +218,7 @@ private fun FileBody(
         }
         Box(Modifier.weight(1f)) {
             if (isMarkdown(path)) {
-                MarkdownText(content = content)
+                MarkdownBody(content = content, modifier = Modifier.padding(12.dp))
             } else {
                 NumberedText(content = content, highlightLine = line)
             }
@@ -272,104 +273,4 @@ private fun NumberedText(
             }
         }
     }
-}
-
-/** Minimal Markdown renderer (commonmark → annotated plain text blocks). */
-@Composable
-private fun MarkdownText(content: String, modifier: Modifier = Modifier) {
-    val blocks = remember(content) { renderMarkdown(content) }
-    LazyColumn(modifier = modifier
-        .fillMaxWidth()
-        .padding(12.dp)) {
-        items(blocks.size) { i ->
-            val b = blocks[i]
-            when (b) {
-                is MdBlock.Heading -> Text(
-                    b.text,
-                    style = when (b.level) {
-                        1 -> MaterialTheme.typography.headlineSmall
-                        2 -> MaterialTheme.typography.titleLarge
-                        else -> MaterialTheme.typography.titleMedium
-                    },
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-                is MdBlock.Code -> Surface(
-                    tonalElevation = 2.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                ) {
-                    Text(
-                        b.text,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(8.dp),
-                    )
-                }
-                is MdBlock.Quote -> Text(
-                    b.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
-                )
-                is MdBlock.Bullet -> Text(
-                    "• ${b.text}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 8.dp, top = 1.dp, bottom = 1.dp),
-                )
-                is MdBlock.Body -> Text(
-                    b.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 2.dp),
-                )
-            }
-        }
-    }
-}
-
-private sealed interface MdBlock {
-    data class Heading(val level: Int, val text: String) : MdBlock
-    data class Code(val text: String) : MdBlock
-    data class Quote(val text: String) : MdBlock
-    data class Bullet(val text: String) : MdBlock
-    data class Body(val text: String) : MdBlock
-}
-
-private fun renderMarkdown(content: String): List<MdBlock> {
-    val out = mutableListOf<MdBlock>()
-    var inCode = false
-    val codeBuf = StringBuilder()
-    for (raw in content.split('\n')) {
-        val line = raw.trimEnd()
-        if (line.trimStart().startsWith("```")) {
-            if (inCode) {
-                out.add(MdBlock.Code(codeBuf.toString().trimEnd()))
-                codeBuf.clear()
-                inCode = false
-            } else {
-                inCode = true
-            }
-            continue
-        }
-        if (inCode) {
-            codeBuf.appendLine(raw)
-            continue
-        }
-        val trimmed = line.trim()
-        when {
-            trimmed.startsWith("#") -> {
-                val level = trimmed.takeWhile { it == '#' }.length.coerceIn(1, 6)
-                out.add(MdBlock.Heading(level, trimmed.drop(level).trim()))
-            }
-            trimmed.startsWith(">") -> out.add(MdBlock.Quote(trimmed.drop(1).trim()))
-            trimmed.startsWith("- ") || trimmed.startsWith("* ") ->
-                out.add(MdBlock.Bullet(trimmed.drop(2).trim()))
-            trimmed.matches(Regex("\\d+\\.\\s+.*")) ->
-                out.add(MdBlock.Bullet(trimmed.substringAfter(" ").trim()))
-            trimmed.isEmpty() -> Unit
-            else -> out.add(MdBlock.Body(trimmed))
-        }
-    }
-    if (inCode && codeBuf.isNotEmpty()) out.add(MdBlock.Code(codeBuf.toString().trimEnd()))
-    return out
 }

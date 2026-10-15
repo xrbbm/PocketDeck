@@ -44,6 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android-native/app/build/
+/android-native/build/
+android/keystore/*.jks
 /android-native/.gradle/
 
 # Widget Preview related

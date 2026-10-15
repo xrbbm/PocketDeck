@@ -1,7 +1,8 @@
 name: Release APK
 
-# 打 tag 即发版：git tag v1.0.0 && git push origin v1.0.0
+# 打 tag 即发版：git tag v0.9.0 && git push origin v0.9.0
 # 产物：正式签名 APK（与本地覆盖安装兼容），挂到 GitHub Release 下。
+# 主线为 android-native（Kotlin + Compose）；archive-flutter/ 仅参考，不编译。
 on:
   push:
     tags:
@@ -21,19 +22,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: flutter analyze + test
-        run: |
-          flutter pub get
-          flutter analyze
-          flutter test
+      - name: unit tests
+        run: ./gradlew :app:testDebugUnitTest
+        working-directory: android-native
 
       # 正式签名：Secrets 里配 KEYSTORE_BASE64 / KEY_ALIAS / KEY_PASSWORD / STORE_PASSWORD
-      # （keystore 转 base64 命令见 README「发版」一节）。缺 Secrets 时降级为 debug 签名，
-      # 包能装但与正式版签名不一致、不可覆盖安装。
+      # （keystore 转 base64：base64 -w0 android/keystore/pideck-release.jks）。缺 Secrets
+      # 时降级为 debug 签名，包能装但与正式版签名不一致、不可覆盖安装。
       - name: restore release keystore (if secrets present)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -56,10 +53,11 @@ jobs:
           fi
 
       - name: build release apk
-        run: flutter build apk --release
+        run: ./gradlew :app:assembleRelease
+        working-directory: android-native
 
       - name: publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: android-native/app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true

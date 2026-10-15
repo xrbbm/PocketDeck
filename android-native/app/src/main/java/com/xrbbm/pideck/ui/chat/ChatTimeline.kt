@@ -84,38 +84,49 @@ fun ChatTimeline(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    // Pinned to bottom while the user stays near it (120px follow window).
-    val pinned by remember {
+    // Follow-scroll is ON by default. The only pause is an active user drag
+    // away from the bottom; lifting the finger (or drifting back near the
+    // bottom) resumes. No pinned-state guessing.
+    var userPaused by remember { mutableStateOf(false) }
+    // Near-bottom distance (px) that counts as "back at the bottom".
+    val nearBottom by remember {
         derivedStateOf {
             val info = listState.layoutInfo
             val total = info.totalItemsCount
             if (total == 0) return@derivedStateOf true
             val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
             last.index >= total - 1 &&
-                last.offset + last.size <= info.viewportEndOffset + 120
+                last.offset + last.size <= info.viewportEndOffset + 160
         }
     }
-    val showJump by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val total = info.totalItemsCount
-            if (total == 0) return@derivedStateOf false
-            val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
-            !(last.index >= total - 1 &&
-                last.offset + last.size <= info.viewportEndOffset + 160)
+    // A user drag away from the bottom pauses once; settling back resumes.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to nearBottom }.collect { (drag, near) ->
+            if (drag && !near) userPaused = true
+            else if (near) userPaused = false
         }
     }
 
-    // New messages / streaming deltas follow only when pinned.
-    LaunchedEffect(messages.size, streaming) {
-        if (pinned && messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
+    // Tail fingerprint: streaming rewrites the same message in place
+    // (same id, same count), so size alone never fires follow-scroll.
+    // Text length + part count catches every visible growth.
+    val tailFingerprint = tailFingerprint(messages.lastOrNull())
+
+    // New messages / streaming deltas follow unless the user paused.
+    // Target the real last layout item: footers (error/unavailable bar,
+    // streaming-tail spacer) sit after the last message, so messages.size-1
+    // would stop one item short and never re-pin.
+    LaunchedEffect(messages.size, tailFingerprint, streaming) {
+        if (!userPaused && messages.isNotEmpty()) {
+            val last = listState.layoutInfo.totalItemsCount - 1
+            if (last >= 0) listState.scrollToItem(last)
         }
     }
     // New approval arrival always jumps (mirrors Flutter _jumpToBottom).
     LaunchedEffect(approvalSeq) {
         if (approvalSeq > 0 && messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
+            val last = listState.layoutInfo.totalItemsCount - 1
+            if (last >= 0) listState.scrollToItem(last)
         }
     }
     // Pull-up paging: reaching the top loads the next page.
@@ -224,7 +235,7 @@ fun ChatTimeline(
             }
         }
         AnimatedVisibility(
-            visible = showJump,
+            visible = userPaused,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
@@ -233,7 +244,11 @@ fun ChatTimeline(
         ) {
             SmallFloatingActionButton(
                 onClick = {
-                    scope.launch { listState.animateScrollToItem(messages.size - 1) }
+                    userPaused = false
+                    scope.launch {
+                        val last = listState.layoutInfo.totalItemsCount - 1
+                        if (last >= 0) listState.animateScrollToItem(last)
+                    }
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -251,16 +266,49 @@ fun ChatTimeline(
  * Timeline segmentation (web 1:1): consecutive assistant tool/reasoning
  * messages form one execution block; user text or plain assistant text
  * breaks it. Only three card levels: execution -> entry -> content.
+ *
+ * History (mapChatMessage) and streaming (StreamDraft.toUiMessage) both
+ * emit mixed messages (thinking+text, text/tool/text). A mixed message
+ * must never reach the MessageRow bare: its tool/reasoning parts would
+ * render as leaked L1 cards (thinking shown outside the execution card,
+ * streaming calls flattened to L1). So grouping first normalizes each
+ * message into pure single-part messages, then folds execution runs.
  */
 sealed interface TimelineBlock {
     data class Single(val message: UiMessage) : TimelineBlock
     data class Execution(val messages: List<UiMessage>) : TimelineBlock
 }
 
+private fun isExecutionPart(p: UiPart): Boolean =
+    p is UiPart.Tool || p is UiPart.Reasoning
+
 private fun isExecutionMessage(m: UiMessage): Boolean {
     if (m.isUser) return false
     if (m.parts.isEmpty()) return false
-    return m.parts.all { it is UiPart.Tool || it is UiPart.Reasoning }
+    return m.parts.all(::isExecutionPart)
+}
+
+/** Split one mixed message into pure single-part messages (id suffixed). */
+fun normalizeTimelineParts(message: UiMessage): List<UiMessage> {
+    if (message.isUser || message.parts.size <= 1) return listOf(message)
+    return message.parts.mapIndexed { index, part ->
+        UiMessage("${message.id}#$index", message.role, listOf(part))
+    }
+}
+
+/** Visible-growth fingerprint of the tail message (follow-scroll key). */
+fun tailFingerprint(message: UiMessage?): Int {
+    if (message == null) return 0
+    var h = message.parts.size
+    for (p in message.parts) {
+        h = h * 31 + when (p) {
+            is UiPart.Text -> p.text.length
+            is UiPart.Reasoning -> p.text.length
+            is UiPart.Tool -> p.toolName.length + (p.callId.length * 7)
+            is UiPart.File -> p.mimeType.length
+        }
+    }
+    return h
 }
 
 fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {
@@ -272,7 +320,7 @@ fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {
             run = mutableListOf()
         }
     }
-    for (m in messages) {
+    for (m in messages.flatMap(::normalizeTimelineParts)) {
         if (isExecutionMessage(m)) {
             run.add(m)
         } else {
@@ -578,13 +626,12 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(
-                            part.text,
+                        MarkdownBody(
+                            content = part.text,
                             modifier = Modifier.padding(
                                 horizontal = 14.dp,
                                 vertical = 10.dp,
                             ),
-                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                 }
