@@ -14,6 +14,7 @@ coroutines = "1.10.2"
 okhttp = "5.1.0"
 serialization = "1.9.0"
 commonmark = "0.30.1"
+accompanistPermissions = "0.37.3"
 junit = "4.13.2"
 
 [libraries]
@@ -38,6 +39,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

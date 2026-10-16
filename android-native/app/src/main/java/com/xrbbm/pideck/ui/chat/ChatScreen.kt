@@ -326,6 +326,9 @@ fun ChatScreen(
                         request = req,
                         busy = vm.uiResponding,
                         onRespond = { json -> scope.launch { vm.respondUi(json) } },
+                        // Sheet form: swipe-dismiss only snoozes (keeps the
+                        // request; the 3s poll re-shows it while pending).
+                        onDismiss = { vm.snoozeUi() },
                     )
                 }
                 Box(Modifier.weight(1f)) {

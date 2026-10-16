@@ -13,8 +13,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -47,16 +53,36 @@ import kotlinx.serialization.json.put
  * Last-touched wins (option tap sends only the option, typing sends only
  * the custom text — never concatenated). Cancel + Submit share one row.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AskCard(
     request: WebPendingUiRequest,
     busy: Boolean,
     onRespond: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
     // Rebuild selection state per request (mirrors Flutter per-request reset).
-    // M3: ElevatedCard + tonal header icon keeps approval visually distinct.
+    // Sheet form: options scroll, submit row stays visible, keyboard clears.
     key(request.requestId) {
+        if (onDismiss != null) {
+            ModalBottomSheet(onDismissRequest = onDismiss) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    AskCardHeader()
+                    Spacer(Modifier.height(8.dp))
+                    if (request.isBatch) BatchBody(request, busy, onRespond)
+                    else SingleBody(request, busy, onRespond)
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        } else {
         androidx.compose.material3.ElevatedCard(
             shape = RoundedCornerShape(20.dp),
             modifier = modifier
@@ -64,35 +90,41 @@ fun AskCard(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
             Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                AppIcons.Hand,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        "需要你确认",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
+                AskCardHeader()
                 Spacer(Modifier.height(8.dp))
                 if (request.isBatch) BatchBody(request, busy, onRespond)
                 else SingleBody(request, busy, onRespond)
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun AskCardHeader() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            modifier = Modifier.size(32.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    AppIcons.Hand,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "需要你确认",
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }
 

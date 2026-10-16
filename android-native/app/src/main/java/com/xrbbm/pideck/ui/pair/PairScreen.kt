@@ -5,6 +5,10 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,20 +18,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -71,12 +82,16 @@ fun PairScreen(onPaired: (String) -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            QrScannerView(
+            CameraPermissionGate(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(3f),
-                onDetect = ::accept,
-            )
+            ) {
+                QrScannerView(
+                    modifier = Modifier.fillMaxSize(),
+                    onDetect = ::accept,
+                )
+            }
             error?.let {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
@@ -94,6 +109,59 @@ fun PairScreen(onPaired: (String) -> Unit) {
                 Button(onClick = { accept(manual) }) { Text("连接") }
             }
             Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+/**
+ * Camera permission gate: MIUI denies silently on bind without a grant,
+ * so never reach CameraX ungranted (black preview, no system dialog).
+ * States: first run -> ask; denied -> retry text; permanently denied ->
+ * jump-to-settings button. Manual address entry below is unaffected.
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun CameraPermissionGate(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val camera = rememberPermissionState(android.Manifest.permission.CAMERA)
+    LaunchedEffect(Unit) {
+        if (!camera.status.isGranted && !camera.status.shouldShowRationale) {
+            camera.launchPermissionRequest()
+        }
+    }
+    when {
+        camera.status.isGranted -> Box(modifier = modifier) { content() }
+        camera.status.shouldShowRationale -> Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("需要相机权限来扫码配对")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { camera.launchPermissionRequest() }) { Text("允许相机权限") }
+            }
+        }
+        else -> Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("相机权限被拒绝，扫码不可用，可手动输入地址")
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", context.packageName, null),
+                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }) { Text("去设置里打开") }
+            }
         }
     }
 }

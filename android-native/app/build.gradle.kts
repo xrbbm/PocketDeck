@@ -105,6 +105,7 @@ dependencies {
     implementation(libs.okhttp.sse)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.commonmark)
+    implementation(libs.accompanist.permissions)
 
     testImplementation(libs.junit)
 }

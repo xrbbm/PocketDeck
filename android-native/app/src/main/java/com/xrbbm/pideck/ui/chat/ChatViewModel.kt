@@ -420,6 +420,12 @@ class ChatViewModel(
         streamJob?.join()
     }
 
+    /** Swipe-dismiss the approval sheet: hide locally, keep the request.
+     * The 3s poll re-shows it while the request is still pending. */
+    fun snoozeUi() {
+        pendingUi = null
+    }
+
     suspend fun respondUi(responseJson: String) {
         val req = pendingUi ?: return
         if (uiResponding) return
