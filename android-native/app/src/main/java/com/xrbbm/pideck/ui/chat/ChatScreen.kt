@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -247,7 +248,9 @@ fun ChatScreen(
                 }
             // Pinned strips above input (user screenshot 1): fixed rows
             // for file-changes / subagents / todo, content stays collapsed.
-            Column(Modifier.fillMaxWidth()) {
+            // Keyboard: Scaffold content padding ignores IME; the bottom
+            // bar must consume it or the keyboard covers the input.
+            Column(Modifier.fillMaxWidth().imePadding()) {
                 PinnedStrips(api = api, sessionId = session.id)
                 InputCard(
                     text = vm.inputText,
