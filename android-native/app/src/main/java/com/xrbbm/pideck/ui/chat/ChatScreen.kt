@@ -169,11 +169,6 @@ fun ChatScreen(
                             )
                         }
                     }
-                    if (vm.streaming || vm.externalStreaming) {
-                        IconButton(onClick = { scope.launch { vm.stop() } }) {
-                            Icon(Icons.Filled.Stop, contentDescription = "中断")
-                        }
-                    }
                     // Web 1:1 right ⋮ menu (screenshot 1): search messages,
                     // toggle theme, install app (placeholder), skills.
                     IconButton(onClick = { overflow = true }) {
@@ -617,8 +612,27 @@ private fun InputCard(
                         )
                     }
                 }
+                var confirmStop by remember { mutableStateOf(false) }
+                if (confirmStop) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { confirmStop = false },
+                        title = { Text("停止当前运行？") },
+                        text = { Text("中断后已生成的内容会保留，运行时停止。") },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                confirmStop = false
+                                onStop()
+                            }) { Text("停止") }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                confirmStop = false
+                            }) { Text("继续运行") }
+                        },
+                    )
+                }
                 androidx.compose.material3.FilledTonalButton(
-                    onClick = { if (streaming) onStop() else onSend() },
+                    onClick = { if (streaming) confirmStop = true else onSend() },
                     enabled = streaming ||
                         text.trim().isNotEmpty() || attachments.isNotEmpty(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
