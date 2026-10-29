@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Image attach pipeline (mirrors Flutter _pickImages/_compressDataUrlAsync):
+ * Image attach pipeline:
  * ≤2MB or gif/webp goes raw; larger stills decode → long side 1600 →
  * JPEG 82. Over-2MB-after-compress items are dropped with a count.
  */

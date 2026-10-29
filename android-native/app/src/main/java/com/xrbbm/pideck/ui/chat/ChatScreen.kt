@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,6 +47,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -78,7 +81,7 @@ fun ChatScreen(
     var workspace by remember { mutableStateOf(false) }
     var previewPath by remember { mutableStateOf<String?>(null) }
     // Project resolution order: match session in list > session.projectId >
-    // single-project fallback (mirrors Flutter _projectId).
+    // single-project fallback.
     val projectId = remember(sessions, session, projects) {
         sessions?.firstOrNull { it.id == session.id }?.projectId
             ?.takeIf { it.isNotEmpty() }
@@ -219,7 +222,7 @@ fun ChatScreen(
                         }
                     }
                     // Context ring: only with a runtime window (mirrors ContextRing).
-                    // Tap opens the usage sheet (mirrors Flutter _showUsage).
+                    // Tap opens the usage sheet.
                     val u = vm.usage
                     if (u != null && u.hasWindow) {
                         // Direct clickable text: TextButton min-size can miss
@@ -232,7 +235,7 @@ fun ChatScreen(
                                 .padding(horizontal = 12.dp, vertical = 12.dp),
                         )
                     }
-                    // Multi-project mismatch hides the entry (mirrors Flutter).
+                    // Multi-project mismatch hides the entry.
                     if (projectId != null) {
                         IconButton(onClick = { workspace = true }) {
                             Icon(
@@ -358,7 +361,7 @@ fun ChatScreen(
                     attaching = attaching,
                     planMode = vm.planMode,
                     modelLabel = vm.model?.display ?: "模型",
-                    thinkingLabel = vm.thinkingLevel,
+                    thinkingLabel = vm.thinkingLevel ?: "off",
                     attachments = vm.attachments,
                     onRemoveAttachment = vm::removeAttachment,
                     onPickImages = {
@@ -483,7 +486,7 @@ fun ChatScreen(
         }
     }
 
-    // Context usage sheet (mirrors Flutter _showUsage + web dialog):
+    // Context usage sheet (same content as the web dialog):
     // percent + tokens/window, overflow warning in error color.
     if (showUsage) {
         val u = vm.usage
@@ -634,16 +637,26 @@ private fun InputCard(
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
+    // Web `resolveComposerCollapsed`: idle + empty + unfocused → collapse the tool
+    // rows and leave only a compact send button at the box's bottom-right.
+    var focused by remember { mutableStateOf(false) }
+    var confirmStop by remember { mutableStateOf(false) }
+    val collapsed = !focused && text.isEmpty() && attachments.isEmpty() &&
+        !streaming && !planMode && !attaching
+
     androidx.compose.material3.OutlinedCard(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Column {
             if (attachments.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     attachments.forEachIndexed { i, _ ->
@@ -668,131 +681,246 @@ private fun InputCard(
                 }
                 Spacer(Modifier.height(4.dp))
             }
-            // Adaptive height: start ~1/4 screen, grow with content,
-            // cap at 1/2 screen then scroll inside (user screenshot spec).
-            val density = androidx.compose.ui.platform.LocalDensity.current
-            val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
-            val minH = screenH * 0.08f
-            val maxH = screenH * 0.5f
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = minH, max = maxH)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                if (text.isEmpty()) {
-                    Text(
-                        "发送消息到当前会话",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                androidx.compose.foundation.text.BasicTextField(
-                    value = text,
-                    onValueChange = onText,
+            // Web parity: min-h-14 (56dp) collapsed / 7rem expanded, max-h-[40dvh].
+            val config = androidx.compose.ui.platform.LocalConfiguration.current
+            val screenH = config.screenHeightDp.dp
+            val screenW = config.screenWidthDp.dp
+            val minH = if (collapsed) 56.dp else 112.dp
+            val maxH = screenH * 0.4f
+            Box(Modifier.fillMaxWidth()) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = minH),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
-                )
-            }
-            // Model name gets its own top row, full width (no truncation).
-            TextButton(
-                onClick = onModelTap,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    horizontal = 4.dp,
-                    vertical = 0.dp,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    modelLabel,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            // Bottom row: agent + thinking left, actions right.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    "Pi",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                thinkingLabel?.let {
-                    TextButton(onClick = onThinkingTap) { Text(it) }
-                }
-                if (planMode) {
-                    TextButton(onClick = onPlanToggle) { Text("计划·开") }
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(
-                    onClick = onPromptTap,
-                    modifier = Modifier.size(40.dp),
+                        .padding(horizontal = 12.dp)
+                        .padding(top = 12.dp)
+                        .heightIn(max = maxH)
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    Icon(
-                        AppIcons.Prompt,
-                        contentDescription = "提示词库",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp),
+                    if (text.isEmpty()) {
+                        Text(
+                            if (planMode) "描述你想让 Pi 先规划的任务" else "发送消息到当前会话",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = text,
+                        onValueChange = onText,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = minH)
+                            .onFocusChanged { focused = it.isFocused },
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
                     )
                 }
-                IconButton(
-                    onClick = onPickImages,
-                    enabled = !attaching && !streaming,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    if (attaching) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                    } else {
-                        Icon(
-                            AppIcons.Image,
-                            contentDescription = "添加图片",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp),
+                if (collapsed) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 10.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SendButton(
+                            streaming = streaming,
+                            enabled = streaming || text.trim().isNotEmpty() ||
+                                attachments.isNotEmpty(),
+                            onClick = { if (streaming) confirmStop = true else onSend() },
                         )
                     }
                 }
-                var confirmStop by remember { mutableStateOf(false) }
-                if (confirmStop) {
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = { confirmStop = false },
-                        title = { Text("停止当前运行？") },
-                        text = { Text("中断后已生成的内容会保留，运行时停止。") },
-                        confirmButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                confirmStop = false
-                                onStop()
-                            }) { Text("停止") }
-                        },
-                        dismissButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                confirmStop = false
-                            }) { Text("继续运行") }
-                        },
+            }
+            if (!collapsed) {
+                androidx.compose.material3.HorizontalDivider(
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                )
+                // Ops row (web `web-composer-ops-row`): agent · image · prompts · plan · send.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 8.dp, top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        "Pi",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    ComposerIconButton(
+                        icon = AppIcons.Image,
+                        description = "添加图片",
+                        enabled = !attaching && !streaming,
+                        loading = attaching,
+                        onClick = onPickImages,
+                    )
+                    ComposerIconButton(
+                        icon = AppIcons.Prompt,
+                        description = "提示词库",
+                        onClick = onPromptTap,
+                    )
+                    // 计划模式 chip: accent when on (web `aria-pressed`).
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onPlanToggle)
+                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            AppIcons.Todo,
+                            contentDescription = null,
+                            tint = if (planMode) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            "计划模式",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (planMode) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    SendButton(
+                        streaming = streaming,
+                        enabled = streaming || text.trim().isNotEmpty() ||
+                            attachments.isNotEmpty(),
+                        onClick = { if (streaming) confirmStop = true else onSend() },
                     )
                 }
-                androidx.compose.material3.FilledTonalButton(
-                    onClick = { if (streaming) confirmStop = true else onSend() },
-                    enabled = streaming ||
-                        text.trim().isNotEmpty() || attachments.isNotEmpty(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp,
-                        vertical = 8.dp,
-                    ),
+                // Model row (web `web-composer-model-row`): model · thinking.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(if (streaming) "停止" else "发送")
+                    PillButton(
+                        label = modelLabel,
+                        onClick = onModelTap,
+                        maxWidth = screenW * 0.3f,
+                    )
+                    thinkingLabel?.let {
+                        PillButton(
+                            label = it,
+                            icon = AppIcons.Brain,
+                            onClick = onThinkingTap,
+                        )
+                    }
                 }
             }
         }
+    }
+    if (confirmStop) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text("停止当前运行？") },
+            text = { Text("中断后已生成的内容会保留，运行时停止。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmStop = false
+                    onStop()
+                }) { Text("停止") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmStop = false }) { Text("继续运行") }
+            },
+        )
+    }
+}
+
+/** Ghost icon button used in the composer ops row (web `h-8 w-8`). */
+@Composable
+private fun ComposerIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(
+                icon,
+                contentDescription = description,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+/** Caption pill with a chevron (web model / thinking selectors). */
+@Composable
+private fun PillButton(
+    label: String,
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    maxWidth: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Unspecified,
+) {
+    Row(
+        modifier = Modifier
+            .widthIn(max = maxWidth)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        icon?.let {
+            Icon(
+                it,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Icon(
+            AppIcons.ChevronDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(14.dp),
+        )
+    }
+}
+
+/** Send / stop button (web `h-8` sm button). */
+@Composable
+private fun SendButton(streaming: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    androidx.compose.material3.FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 16.dp,
+            vertical = 6.dp,
+        ),
+    ) {
+        Text(
+            if (streaming) "停止" else "发送",
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 

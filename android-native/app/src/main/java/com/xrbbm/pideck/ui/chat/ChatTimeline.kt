@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
  * Chat timeline: history paging (pull-up) + streaming segments in arrival
  * order + jump-to-bottom arrow + inline error with retry/ignore.
  *
- * Mirrors Flutter ChatPage list behavior:
+ * List behavior:
  * - follow-scroll only while pinned near the bottom (>120px away = free)
  * - arrow appears only when >160px from the bottom
  * - history failures degrade inline; the input box stays alive (separate lane)
@@ -124,7 +124,7 @@ fun ChatTimeline(
             if (last >= 0) listState.scrollToItem(last)
         }
     }
-    // New approval arrival always jumps (mirrors Flutter _jumpToBottom).
+    // New approval arrival always jumps.
     LaunchedEffect(approvalSeq) {
         if (approvalSeq > 0 && messages.isNotEmpty()) {
             val last = listState.layoutInfo.totalItemsCount - 1

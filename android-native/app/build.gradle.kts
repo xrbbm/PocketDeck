@@ -7,8 +7,7 @@ plugins {
 }
 
 android {
-    // Frozen Flutter baseline uses compile/target 36, min 24 (FlutterExtension).
-    // Native raises min to 26 for CameraX + DataStore desugaring headroom.
+    // compile/target 36; min 26 for CameraX + DataStore desugaring headroom.
     namespace = "com.xrbbm.pocketdeck"
     compileSdk = 36
 
@@ -20,9 +19,8 @@ android {
         versionName = "0.9.0-n1"
     }
 
-    // Release signing reuses the Flutter keystore (android/key.properties),
-    // debug key otherwise (mirrors android/app/build.gradle.kts).
-    // storeFile (e.g. keystore/x.jks) resolves from android/ in Flutter;
+    // Release signing reads android/key.properties (gitignored), debug key
+    // otherwise. storeFile (e.g. keystore/x.jks) resolves from android/;
     // anchor the same file from android-native via ../android/<rel>.
     val keystoreProperties = Properties()
     val keystorePropsFile = rootProject.file("../android/key.properties")

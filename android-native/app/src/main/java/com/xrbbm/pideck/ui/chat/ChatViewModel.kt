@@ -46,7 +46,7 @@ fun planAgentMessage(planMode: Boolean, text: String): String? {
 /**
  * Chat timeline state: history paging + streaming draft + approval polling.
  *
- * Mirrors Flutter ChatPage behavior:
+ * Chat page state machine:
  * - first page without `before`, follow-ups with last nextBefore (null = top)
  * - `unavailable` is a dedicated error state (never rendered as empty chat)
  * - streaming keeps arrived content on stop; abort goes to the server after

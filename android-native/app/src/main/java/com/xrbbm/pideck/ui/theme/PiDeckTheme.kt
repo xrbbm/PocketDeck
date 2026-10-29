@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // Catppuccin Latte (light) — slot-aligned with One Dark Pro (dark),
-// ported from Flutter main.dart buildLightTheme/buildDarkTheme.
+// Catppuccin Latte (light) and OneDark (dark) palettes.
 // Public for the WCAG AA contrast test (mirrors pairing_store_test.dart).
 object PiDeckPalette {
     val LatteBase = Color(0xFFEFF1F5)

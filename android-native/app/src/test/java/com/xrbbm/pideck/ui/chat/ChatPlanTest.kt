@@ -6,7 +6,7 @@ import org.junit.Test
 
 class ChatPlanTest {
     @Test
-    fun `plan message format matches flutter`() {
+    fun `plan message format matches the web`() {
         val msg = planAgentMessage(true, "看看这段代码")
         assertEquals(
             "__PI_DECK_PLAN_MODE__\n看看这段代码\n\n请先只做只读分析，不要修改文件。" +

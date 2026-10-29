@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
 
-/** WCAG AA contrast gates, ported from Flutter pairing_store_test.dart. */
+/** WCAG AA contrast gates for both palettes. */
 class ThemeContrastTest {
     private fun channel(v: Float): Double {
         val d = v.toDouble()

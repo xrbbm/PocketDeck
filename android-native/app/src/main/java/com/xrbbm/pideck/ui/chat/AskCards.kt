@@ -62,7 +62,7 @@ fun AskCard(
     modifier: Modifier = Modifier,
     onDismiss: (() -> Unit)? = null,
 ) {
-    // Rebuild selection state per request (mirrors Flutter per-request reset).
+    // Rebuild selection state per request.
     // Sheet form: options scroll, submit row stays visible, keyboard clears.
     key(request.requestId) {
         if (onDismiss != null) {
@@ -263,7 +263,7 @@ private fun BatchBody(
     val isLast = tab >= questions.size - 1
     val currentAns = answers[current.id]
 
-    // Prefill once per tab (mirrors Flutter didUpdateWidget prefill).
+    // Prefill once per tab.
     val tabPre = current.prefill ?: ""
     if (tabPre.isNotEmpty() && custom.isEmpty()) {
         custom = tabPre

@@ -39,7 +39,7 @@ class ApiException(message: String, val statusCode: Int? = null) : Exception(mes
  * PiDeck Web API client (mirrors docs/api-contract.md / ApiClient).
  *
  * No auth header on token-less LAN servers; token only reserved for future use.
- * Timeouts mirror Flutter (GET 10s / POST 15s) so backgrounded requests fail
+ * Timeouts: GET 10s / POST 15s, so backgrounded requests fail
  * fast instead of hanging the UI.
  */
 class ApiClient(

@@ -49,7 +49,7 @@ import java.util.concurrent.Executors
 
 /**
  * Pairing screen: CameraX + ML Kit QR scan with manual address fallback
- * (mirrors Flutter PairPage for emulators / camera-less devices).
+ * (manual address entry for emulators / camera-less devices).
  */
 @Composable
 fun PairScreen(onPaired: (String) -> Unit) {

@@ -2,25 +2,22 @@
 
 > PiDeck 桌面端 Web 服务的手机原生客户端：扫码配对，手机上接着聊电脑上的 AI 会话。
 > 上游参照：PiDeck 桌面端（`webApi.ts` / `WebChatApp.tsx` / `WebTimeline.tsx`），版本号跟桌面端走。
-> **当前主线是 `android-native/`（Kotlin + Jetpack Compose，只做 Android）**；Flutter 旧实现已归档到 `archive-flutter/`，只读参考，不编译。
+> **主线是 `android-native/`（Kotlin + Jetpack Compose，只做 Android）。**
 
 ## 0. 主线与版本（先看这节，别走错目录）
 
-- 主线：`android-native/`，独立 Gradle 根（`pideck-native`，`include(":app")`），与 Flutter `android/` 无关。
-- 归档：`archive-flutter/`（`lib/` + `test/` + `pubspec.yaml`，`0.9.0+2`）是 Flutter 旧实现，A–D 批＋ E/F 模型类都在那里，最后提交 `5bc4bfa`，只读参考，不编译，不跑 `flutter analyze/test`。
+- 主线：`android-native/`，独立 Gradle 根（`pideck-native`，`include(":app")`）。
 - 包名注意：源码目录 `com.xrbbm.pideck`，但 `namespace` / `applicationId` = `com.xrbbm.pocketdeck`（`android-native/app/build.gradle.kts`），两者不一致，改包相关先核对。
-- 版本：跟桌面端 `vX`，原生后缀 `-nN`（如 `versionName 0.9.0-n1`）；Flutter 旧后缀 `-pN`（如 `v0.9.0-p2`）已作废。
+- 版本：跟桌面端 `vX`，原生后缀 `-nN`（如 `versionName 0.9.0-n1`）。
 - 技术栈：Kotlin `2.4.0` + AGP `9.1.0` + `compile/targetSdk 36` + `minSdk 26` + JVM17；Compose BOM `2025.10.01` + M3；
   `okhttp 5.1.0` + `okhttp-sse`、`kotlinx-serialization-json`、`coroutines`、`datastore-preferences`（配对持久化）、
   CameraX + MLKit（扫码，替代 `mobile_scanner`）、`commonmark`（Markdown 渲染）、`material-icons-core/extended`。
-- 文档债（已知，不用现在修，动手别踩）：
-  `docs/api-contract.md` 头部实现指向仍是 `lib/api/api_client.dart`（契约本身仍是唯一真相源，改接口先改它，路径现为 `archive-flutter/lib/api/api_client.dart`）；
-  README FAQ 说草稿存手机上，实际草稿只在内存（见 §3）。
+- 文档债（已知，不用现在修，动手别踩）：README FAQ 说草稿存手机上，实际草稿只在内存（见 §3）。
 
 ## 1. 目录（`android-native/app/src/main/java/com/xrbbm/pideck/`）
 
 - `core/PairingParser.kt` + `core/PairingStore.kt`：扫码地址解析（缺端口默认 **8765**）+ DataStore `pideck_pairing`
- （keys：`pair_base_url` / `pair_token` / `last_session_id` / `app_dark_theme`，与旧 Flutter 同名；新增 `drawer_expanded_groups` 逗号拼接，空 = 全折叠）。
+ （keys：`pair_base_url` / `pair_token` / `last_session_id` / `app_dark_theme`；新增 `drawer_expanded_groups` 逗号拼接，空 = 全折叠）。
 - `core/net/ApiClient.kt`：REST + SSE。默认 `connect 10s / read 15s / write 15s`，REST 包 `withTimeout(15s)`；
   `streamChat` = `POST /api/chat` + `Accept: text/event-stream`（`okhttp-sse`）；`streamSession` = `GET /api/sessions/:id/stream` 且 `readTimeout(0)` 常驻（服务端心跳稀疏，不断线）。
 - `core/net/ChatStream.kt` + `ChatMap.kt`：SSE 增量切帧 + 帧折叠成 UI 消息（时间线分段，见 §3）+ 历史映射。
@@ -84,10 +81,10 @@
 
 ## 4. 构建与验证（缺一不可）
 
-- 改完在 `android-native/` 下跑 `./gradlew :app:testDebugUnitTest`（74 个全过）+ 相关单测同步更新；`archive-flutter/` 只读参考，不跑 `flutter analyze/test`。
+- 改完在 `android-native/` 下跑 `./gradlew :app:testDebugUnitTest`（74 个全过）+ 相关单测同步更新。
   注意：本机 shell 的 `JAVA_HOME` 默认指向 JDK8，跑 gradle 前先 `export JAVA_HOME=C:/Users/shuyo/scoop/apps/zulu21-jdk/current`，否则报 `Gradle requires JVM 17 or later`。
 - 打包：`./gradlew :app:assembleRelease`，产物 `android-native/app/build/outputs/apk/release/app-release.apk`
-  （release 约 36M，正式签名 `CN=XRBBM`；签名用根 `android/key.properties` + `android/keystore/*.jks`（Flutter 归档后仅剩的签名材料），无则 debug 兜底，`minify/shrink=false`）。
+  （release 约 36M，正式签名 `CN=XRBBM`；签名用根 `android/key.properties` + `android/keystore/*.jks`，无则 debug 兜底，`minify/shrink=false`）。
   **keystore 与密码自行备份，丢了无法覆盖安装。**（`android-native/build/` 未跟踪，注意别把构建产物带进提交。）
 - 真机验证：MuMu12 Nx（`adb connect 127.0.0.1:16384`）：`install → launch → screencap 看图 → input 操控 → logcat 无 error/FATAL`；
   内存参考 PSS 约 140M；审批卡需服务端真实弹出请求时再点。
@@ -102,4 +99,4 @@
   供应商额度块、复制会话为 Markdown、刷新会话消息、项目移除。
 - 同步来源：网页端 `https://github.com/ayuayue/PiDeck`（本地部署 `http://192.168.50.210:8765`）。它的 API 层在 `/assets/web-*.js` 里（`apiFetch`/`getJson` 附近，约 300K 偏移），比桌面端 bundle 好读：抓下来 grep 函数名即可拿到真实 HTTP 形状。
 - 缺口判定方法：打开 `http://<host>:8765/` 网页版逐项点，凡网页有、APP 无或行为不一致的，记一条再动手；别凭印象加功能。
-- 别做：iOS / 双端复用（只做 Android）、`lib/` Flutter 旧代码任何改动、安装/卸载技能与扩展（只做启停，网页亦如此）。
+- 别做：iOS / 双端复用（只做 Android）、安装/卸载技能与扩展（只做启停，网页亦如此）。

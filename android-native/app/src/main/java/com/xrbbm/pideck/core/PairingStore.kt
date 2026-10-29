@@ -12,9 +12,8 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "pideck_pairing")
 
 /**
- * Single saved PiDeck service. Keys mirror Flutter PairingStore
- * (`pair_base_url` / `pair_token` / `last_session_id` / `app_dark_theme`)
- * so behavior stays comparable across clients. Token stays empty while
+ * Single saved PiDeck service. Keys (`pair_base_url` / `pair_token` /
+ * `last_session_id` / `app_dark_theme`). Token stays empty while
  * the LAN server runs without auth checks.
  */
 data class Pairing(val baseUrl: String, val token: String = "")

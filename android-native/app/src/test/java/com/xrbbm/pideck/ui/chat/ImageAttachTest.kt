@@ -24,7 +24,7 @@ class ImageAttachTest {
     }
 
     @Test
-    fun `limits match flutter contract`() {
+    fun `limits match the web contract`() {
         assertEquals(4, ImageAttach.MAX_COUNT)
         assertEquals(2 * 1024 * 1024, ImageAttach.MAX_BYTES)
         assertEquals(1600, ImageAttach.MAX_SIDE)

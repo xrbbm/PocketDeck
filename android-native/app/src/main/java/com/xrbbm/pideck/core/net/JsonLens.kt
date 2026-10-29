@@ -11,7 +11,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Lenient JSON readers mirroring Flutter's `as X? ?? default` parsing. */
+/** Lenient JSON readers: `as X? ?? default` style parsing. */
 internal fun JsonObject.str(key: String, default: String = ""): String =
     (this[key] as? kotlinx.serialization.json.JsonPrimitive)
         ?.takeIf { it.isString }?.content ?: default

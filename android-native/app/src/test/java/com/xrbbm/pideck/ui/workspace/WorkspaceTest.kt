@@ -19,7 +19,7 @@ class WorkspaceTest {
     fun `git date guards dirty data`() {
         assertEquals("", formatGitDate(0))
         assertEquals("", formatGitDate(-5))
-        // Seconds input converts to ms (mirrors Flutter <1e12 branch).
+        // Seconds input converts to ms (values below 1e12 are seconds).
         // 1704067200s = 2024-01-01 UTC; day part is timezone-safe enough
         // for the guard test (only emptiness of dirty data is asserted).
         assertFalse(formatGitDate(1704067200).isEmpty())

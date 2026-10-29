@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Ported cases from Flutter PairingStore.parseBaseUrl contract. */
+/** Cases for the PairingStore.parseBaseUrl contract. */
 class PairingParserTest {
     @Test
     fun `accepts full http url`() {

@@ -1,7 +1,7 @@
 # PocketDeck API 契约（PiDeck 桌面端 Web 服务）
 
-> 唯一真相源：改接口先改本文档。实现见 `lib/api/api_client.dart`。
-> 上游参照：PiDeck 桌面端 v0.8.0 网页实现（`webApi.ts` / `WebChatApp.tsx` / `WebTimeline.tsx`）。
+> 唯一真相源：改接口先改本文档。实现见 `android-native/app/src/main/java/com/xrbbm/pideck/core/net/ApiClient.kt`。
+> 上游参照：PiDeck 桌面端网页实现（<https://github.com/ayuayue/PiDeck>，`/assets/web-*.js` 里的 `apiFetch`/`getJson`）。
 
 Base URL = 扫码配对得到的地址，如 `http://<host>:8765`（缺端口默认 8765，路径均为相对路径）。
 

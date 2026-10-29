@@ -120,7 +120,6 @@ cd android-native
 包在 `android-native/app/build/outputs/apk/release/app-release.apk`。
 想要正式签名就把 `android/key.properties.example` 复制成 `android/key.properties` 填好；
 不填也能打，就是 debug 签名，和正式包互相覆盖不了。
-`archive-flutter/` 是 Flutter 旧实现归档，只读参考，不编译。
 
 ## ❓ 常见问题 FAQ
 
@@ -158,8 +157,7 @@ android-native/         # 主线：Kotlin + Compose，独立 Gradle 根
 ├─ app/src/main/…/pideck/
 │  ├─ core/             # 扫码解析 + 配对存储 + REST/SSE 网络层
 │  └─ ui/               # 聊天 / 抽屉 / 工作区 / 配对 / 主题
-├─ app/src/test/        # 单测（56 个）
-archive-flutter/        # Flutter 旧实现归档，只读参考，不编译
+├─ app/src/test/        # 单测（74 个）
 docs/api-contract.md    # 接口契约，唯一真相源
 ```
 

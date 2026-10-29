@@ -1,5 +1,0 @@
-# Release signing: copy to key.properties (same dir) and fill in. NEVER commit key.properties.
-storePassword=
-keyPassword=
-keyAlias=
-storeFile=keystore/pideck-release.jks

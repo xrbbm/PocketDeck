@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Prompt library sheet (mirrors Flutter _PromptSheet): 250ms debounce
+ * Prompt library sheet: 250ms debounce
  * search + categories, tapping an entry inserts its body into input.
  * Only the last tap's response is honored (insert generation guard).
  */

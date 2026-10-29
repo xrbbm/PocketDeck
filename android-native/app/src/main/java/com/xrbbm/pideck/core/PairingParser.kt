@@ -1,7 +1,7 @@
 package com.xrbbm.pideck.core
 
 /**
- * Pairing URL parser, ported 1:1 from Flutter PairingStore.parseBaseUrl.
+ * Pairing URL parser (PairingStore.parseBaseUrl contract).
  *
  * Accepts `http(s)://host:port` or bare `host[:port]` (defaults to http +
  * [DEFAULT_PORT]). Returns null for empty text, non-http(s) schemes, or

@@ -1,6 +1,5 @@
 [versions]
-# Frozen baseline alignment: Flutter android/ uses AGP 9.1.0 + Kotlin 2.4.0,
-# compile/target SDK 36, min SDK 24.
+# Frozen baseline: AGP 9.1.0 + Kotlin 2.4.0, compile/target SDK 36, min SDK 26.
 agp = "9.1.0"
 kotlin = "2.4.0"
 coreKtx = "1.17.0"

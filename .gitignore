@@ -23,13 +23,7 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
+# Build output
 /build/
 /coverage/
 
@@ -40,16 +34,10 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
 /android-native/app/build/
 /android-native/build/
 android/keystore/*.jks
 /android-native/.gradle/
-
-# Widget Preview related
-.widget_preview/
 android/key.properties
 
 # ---- PocketDeck: local-only, never commit ----
