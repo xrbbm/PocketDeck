@@ -92,7 +92,10 @@ fun ChatScreen(
     var overflow by remember { mutableStateOf(false) }
     var showUsage by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
+    // Search-result jump target (message id); consumed by ChatTimeline.
+    var jumpTo by remember { mutableStateOf<String?>(null) }
     var showSkills by remember { mutableStateOf(false) }
+    var showDsh by remember { mutableStateOf(false) }
     val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
@@ -209,6 +212,16 @@ fun ChatScreen(
                             onClick = {
                                 overflow = false
                                 showSkills = true
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("DSH 工具") },
+                            leadingIcon = {
+                                Icon(AppIcons.Terminal, contentDescription = null)
+                            },
+                            onClick = {
+                                overflow = false
+                                showDsh = true
                             },
                         )
                     }
@@ -343,6 +356,8 @@ fun ChatScreen(
                         onRetry = { scope.launch { vm.loadFirst() } },
                         onIgnoreError = vm::clearError,
                         onUserMessageLongPress = { menuMsg = it },
+                        jumpTo = jumpTo,
+                        onJumpDone = { jumpTo = null },
                     )
                 }
             }
@@ -413,8 +428,21 @@ fun ChatScreen(
         }
     }
 
+    if (showDsh) {
+        DshToolsSheet(
+            api = api,
+            sessionId = session.id,
+            onError = { scope.launch { snack.showSnackbar(it) } },
+            onDismiss = { showDsh = false },
+        )
+    }
     if (showSearch) {
-        MessageSearchSheet(messages = vm.messages, onDismiss = { showSearch = false })
+        MessageSearchSheet(
+            messages = vm.messages,
+            onSearchServer = { vm.searchHistory(it) },
+            onJump = { jumpTo = it },
+            onDismiss = { showSearch = false },
+        )
     }
     if (showSkills) {
         SkillsExtensionsSheet(

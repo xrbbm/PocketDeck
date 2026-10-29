@@ -750,4 +750,119 @@ class ApiClient(
         )
         return FileContentResult.fromJson(json)
     }
+
+    /**
+     * GET /api/events (SSE). Emits a state snapshot on every server push;
+     * null data means "something changed, refetch". Long-lived: no read
+     * timeout (server pings sparsely).
+     */
+    fun streamEvents(): Flow<WebState?> = flow {
+        val streamHttp = http.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
+        val req = Request.Builder()
+            .url(url("/api/events")).apply {
+                headers().forEach { (k, v) -> addHeader(k, v) }
+                addHeader("Accept", "text/event-stream")
+            }.get().build()
+        val frames = kotlinx.coroutines.channels.Channel<String>(capacity = 16)
+        val listener = object : okhttp3.sse.EventSourceListener() {
+            override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
+                if (type != null && type != "state") return
+                frames.trySend(data)
+            }
+
+            override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
+                frames.close()
+            }
+
+            override fun onClosed(eventSource: EventSource) {
+                frames.close()
+            }
+        }
+        EventSources.createFactory(streamHttp).newEventSource(req, listener)
+        for (data in frames) {
+            val parsed = if (data.isBlank()) {
+                null
+            } else {
+                runCatching { LenientJson.parseToJsonElement(data).jsonObject }
+                    .getOrNull()
+                    ?.let { WebState.fromJson(it) }
+            }
+            emit(parsed)
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * GET /api/sessions/:id/search?q= — server-side history index.
+     * null = index unavailable (caller falls back to loaded messages).
+     */
+    suspend fun searchSession(sessionId: String, query: String): List<SearchHit>? {
+        val json = getJson(
+            "/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/search",
+            mapOf("q" to query),
+        )
+        return parseSessionSearch(json)
+    }
+
+    suspend fun fetchDshGoal(sessionId: String): DshGoal? {
+        val json = getJson("/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/dsh/goal")
+        return json.objOrNull("goal")?.let(DshGoal::fromJson)
+    }
+
+    suspend fun fetchDshSkills(sessionId: String): List<DshSkill> {
+        val json = getJson("/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/dsh/skills")
+        return json.arr("skills").mapNotNull { (it as? JsonObject)?.let(DshSkill::fromJson) }
+    }
+
+    suspend fun fetchDshSubagents(sessionId: String): List<DshSubagent> {
+        val json = getJson("/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/dsh/subagents")
+        return json.arr("subagents").mapNotNull { (it as? JsonObject)?.let(DshSubagent::fromJson) }
+    }
+
+    /** Child-agent transcript, newest page (no paging in the panel). */
+    suspend fun fetchDshSubagentHistory(sessionId: String, childSessionId: String): List<UiMessage> {
+        val json = getJson(
+            "/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/dsh/subagents/" +
+                "${URLEncoder.encode(childSessionId, "UTF-8")}/history",
+        )
+        return json.arr("messages").mapNotNull { (it as? JsonObject)?.let(::mapChatMessage) }
+    }
+
+    suspend fun fetchDshPlugins(): DshPlugins {
+        val json = getJson("/api/dsh/plugins")
+        return DshPlugins(
+            dynamic = json.arr("dynamic").mapNotNull { (it as? JsonObject)?.let(DshPlugin::fromJson) },
+            static = json.arr("static").mapNotNull { (it as? JsonObject)?.let(DshStaticPlugin::fromJson) },
+        )
+    }
+
+    suspend fun installDshPlugin(
+        sessionId: String,
+        idPrefix: String,
+        name: String,
+        purpose: String,
+        hostCode: String,
+    ) {
+        postJson(
+            "/api/dsh/plugins/install",
+            buildJsonObject {
+                put("sessionId", sessionId)
+                put("idPrefix", idPrefix)
+                put("name", name)
+                put("purpose", purpose)
+                put("hostCode", hostCode)
+            },
+        )
+    }
+
+    /** POST /api/dsh/plugins/:id/:action — run/stop/uninstall. */
+    suspend fun dshPluginAction(pluginId: String, action: String, body: JsonObject) {
+        postJson(
+            "/api/dsh/plugins/${URLEncoder.encode(pluginId, "UTF-8")}/$action",
+            body,
+        )
+    }
 }

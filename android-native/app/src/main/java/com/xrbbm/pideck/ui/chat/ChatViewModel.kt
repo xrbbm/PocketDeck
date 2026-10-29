@@ -15,6 +15,7 @@ import com.xrbbm.pideck.core.net.WebRuntime
 import com.xrbbm.pideck.core.net.WebSession
 import com.xrbbm.pideck.core.net.WebContextUsage
 import com.xrbbm.pideck.core.net.AvailableModel
+import com.xrbbm.pideck.core.net.SearchHit
 import com.xrbbm.pideck.core.net.strOrNull
 import java.util.UUID
 import kotlinx.coroutines.Job
@@ -197,6 +198,10 @@ class ChatViewModel(
             loading = false
         }
     }
+
+    /** Server-side history index; null = index unavailable (fall back to local). */
+    suspend fun searchHistory(query: String): List<SearchHit>? =
+        runCatching { api.searchSession(session.id, query) }.getOrNull()
 
     suspend fun loadMore() {
         val before = nextBefore ?: return

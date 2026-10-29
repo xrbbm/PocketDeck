@@ -73,6 +73,7 @@ fun ShellScreen(
     var selectedId by remember { mutableStateOf<String?>(null) }
     var entered by remember { mutableStateOf(false) }
     var muted by remember { mutableStateOf(false) }
+    var live by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var newDialog by remember { mutableStateOf(false) }
     var newProjectDialog by remember { mutableStateOf(false) }
@@ -86,26 +87,29 @@ fun ShellScreen(
     // Drawer group expand memory: default collapsed, survives restarts.
     var expandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    suspend fun applyState(s: WebState) {
+        state = s
+        error = null
+        loading = false
+        if (!entered) {
+            entered = true
+            val saved = store.loadLastSessionId()
+            selectedId = if (saved != null && s.sessions.any { it.id == saved }) {
+                saved
+            } else {
+                scope.launch { drawer.open() }
+                null
+            }
+        } else if (selectedId != null && s.sessions.none { it.id == selectedId }) {
+            selectedId = null
+        }
+    }
+
     suspend fun refresh() {
         if (refreshing || muted) return
         refreshing = true
         try {
-            val s = api.fetchState()
-            state = s
-            error = null
-            loading = false
-            if (!entered) {
-                entered = true
-                val saved = store.loadLastSessionId()
-                selectedId = if (saved != null && s.sessions.any { it.id == saved }) {
-                    saved
-                } else {
-                    scope.launch { drawer.open() }
-                    null
-                }
-            } else if (selectedId != null && s.sessions.none { it.id == selectedId }) {
-                selectedId = null
-            }
+            applyState(api.fetchState())
         } catch (e: Exception) {
             error = (e as? ApiException)?.message ?: "$e"
             loading = false
@@ -117,9 +121,27 @@ fun ShellScreen(
     LaunchedEffect(pairing.baseUrl) {
         expandedGroups = store.loadExpandedGroups()
         refresh()
+        // Live push (web parity): /api/events carries the full state on every
+        // change. A dead stream drops back to the 5s poll, never both.
+        launch {
+            while (isActive) {
+                try {
+                    api.streamEvents().collect { pushed ->
+                        live = true
+                        if (!muted) {
+                            if (pushed != null) applyState(pushed) else refresh()
+                        }
+                    }
+                } catch (_: Exception) {
+                    // stream ended: fall through to the poll fallback
+                }
+                live = false
+                delay(3000)
+            }
+        }
         while (isActive) {
             delay(5000)
-            refresh()
+            if (!live) refresh()
         }
     }
 
@@ -128,7 +150,6 @@ fun ShellScreen(
         selectedId = s.id
         scope.launch { drawer.close() }
     }
-
     val session: WebSession? = state?.sessions?.firstOrNull { it.id == selectedId }
 
     ModalNavigationDrawer(

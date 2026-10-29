@@ -81,4 +81,30 @@ class ChatTimelineTest {
         )
         assertTrue(tailFingerprint(two) != tailFingerprint(one))
     }
+
+    @Test
+    fun `jump finds the block holding a normalized part`() {
+        val mixed = UiMessage(
+            "m1",
+            "assistant",
+            listOf(UiPart.Reasoning("想一下"), UiPart.Text("结论")),
+        )
+        val blocks = splitExecutionBlocks(listOf(mixed))
+        // Normalization suffixes ids (#index); a raw search-hit id must
+        // still resolve to the block that holds it.
+        assertEquals(0, findJumpBlock(blocks, "m1"))
+        assertEquals(-1, findJumpBlock(blocks, "missing"))
+    }
+
+    @Test
+    fun `jump matches the server history key, not the whole id`() {
+        // Server page ids are `{sessionId}-history-{8hex}`; /search hits only
+        // carry `{8hex}`.
+        val sid = "562e830a-c902-4c4a-86db-23b4d820d031"
+        val msg = UiMessage("$sid-history-59670a0c", "user", listOf(UiPart.Text("hi")))
+        val blocks = splitExecutionBlocks(listOf(msg))
+        assertEquals(0, findJumpBlock(blocks, "59670a0c"))
+        assertEquals("59670a0c", historyKey("$sid-history-59670a0c#0"))
+        assertEquals("m1", historyKey("m1"))
+    }
 }

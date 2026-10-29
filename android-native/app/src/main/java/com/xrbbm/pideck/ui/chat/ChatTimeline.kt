@@ -80,6 +80,8 @@ fun ChatTimeline(
     onIgnoreError: () -> Unit,
     onUserMessageLongPress: (UiMessage) -> Unit,
     modifier: Modifier = Modifier,
+    jumpTo: String? = null,
+    onJumpDone: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -139,6 +141,26 @@ fun ChatTimeline(
             }
     }
 
+    // Web 1:1 execution grouping: consecutive assistant tool/reasoning
+    // messages fold into one ExecutionCard (no same-tool merging).
+    // User text always breaks the run (mirrors web timeline).
+    val blocks = remember(messages) { splitExecutionBlocks(messages) }
+
+    // Search-result jump: land on the block holding that message, then pause
+    // follow-scroll so the arrival is not immediately yanked to the tail.
+    LaunchedEffect(jumpTo, blocks) {
+        val target = jumpTo ?: return@LaunchedEffect
+        val idx = findJumpBlock(blocks, target)
+        if (idx >= 0) {
+            val leading = (if (loadingMore) 1 else 0) +
+                (if (unavailable != null) 1 else 0) +
+                (if (error != null) 1 else 0)
+            userPaused = true
+            listState.animateScrollToItem(leading + idx)
+        }
+        onJumpDone()
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         if (loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -149,7 +171,6 @@ fun ChatTimeline(
         // Web 1:1 execution grouping: consecutive assistant tool/reasoning
         // messages fold into one ExecutionCard (no same-tool merging).
         // User text always breaks the run (mirrors web timeline).
-        val blocks = remember(messages) { splitExecutionBlocks(messages) }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -309,6 +330,24 @@ fun tailFingerprint(message: UiMessage?): Int {
         }
     }
     return h
+}
+
+/** Block index holding [messageId] (search-result jump); -1 when absent. */
+/**
+ * Server history key. Page ids are `{sessionId}-history-{8hex}` (part
+ * normalization appends `#index`), while `/search` hits only carry the
+ * trailing `{8hex}`. Compare on this key, never on the whole id.
+ */
+fun historyKey(id: String): String = id.substringBefore('#').substringAfterLast("-history-")
+
+fun findJumpBlock(blocks: List<TimelineBlock>, messageId: String): Int {
+    val key = historyKey(messageId)
+    return blocks.indexOfFirst { block ->
+        when (block) {
+            is TimelineBlock.Single -> historyKey(block.message.id) == key
+            is TimelineBlock.Execution -> block.messages.any { historyKey(it.id) == key }
+        }
+    }
 }
 
 fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {

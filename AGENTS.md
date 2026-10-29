@@ -24,22 +24,24 @@
 - `core/net/ApiClient.kt`：REST + SSE。默认 `connect 10s / read 15s / write 15s`，REST 包 `withTimeout(15s)`；
   `streamChat` = `POST /api/chat` + `Accept: text/event-stream`（`okhttp-sse`）；`streamSession` = `GET /api/sessions/:id/stream` 且 `readTimeout(0)` 常驻（服务端心跳稀疏，不断线）。
 - `core/net/ChatStream.kt` + `ChatMap.kt`：SSE 增量切帧 + 帧折叠成 UI 消息（时间线分段，见 §3）+ 历史映射。
-- `core/net/ModelsCore.kt` / `ModelsAsk.kt` / `ModelsWorkspace.kt`：服务端形状直译（含 DSH / 技能 / 扩展 / Git / 文件模型）。
+- `core/net/ModelsCore.kt` / `ModelsAsk.kt` / `ModelsWorkspace.kt` / `ModelsDsh.kt`：服务端形状直译（含 DSH / 技能 / 扩展 / Git / 文件 / 搜索命中模型）。
 - `core/net/BranchFamily.kt` + `JsonLens.kt`：分支家族推导（root 向上、children 向下）+ JSON 容错读取。
 - `ui/chat/ChatScreen.kt` + `ChatTimeline.kt` + `ChatViewModel.kt`：聊天页（历史＋流式＋审批＋中断＋模型签＋上下文＋执行卡＋输入框，最大三块）。
 - `ui/chat/ToolCards.kt` + `AskCards.kt`：执行卡 L1–L3（见 §3）+ 审批卡。`Strips.kt`：文件/子代理/todo 常驻监控条。
-- `ui/chat/ModelSheet.kt` + `PromptSheet.kt` + `MessageSearchSheet.kt` + `SkillsExtensionsSheet.kt` + `ImageAttach.kt`：
-  模型档位表（档位取真实模型，见 §3）/ 提示词库（250ms 防抖搜索＋分类）/ 已加载消息搜索 / 技能扩展开关 / 图片附件（上限 4 张，大图压到 1600 长边再传）。
+- `ui/chat/ModelSheet.kt` + `PromptSheet.kt` + `MessageSearchSheet.kt` + `SkillsExtensionsSheet.kt` + `DshToolsSheet.kt` + `ImageAttach.kt`：
+  模型档位表（档位取真实模型，见 §3）/ 提示词库（250ms 防抖搜索＋分类）/ 服务器索引搜索＋跳转 / 技能扩展开关 / DSH 工具面板（目标・子代理・技能・插件）/ 图片附件（上限 4 张，大图压到 1600 长边再传）。
 - `ui/shell/ShellScreen.kt` + `SessionsDrawer.kt`：抽屉壳（`GET /api/state` **5s** 轮询）+ 分组会话抽屉（宽 **80%**，默认折叠＋持久化）。
 - `ui/workspace/WorkspaceDrawer.kt` + `FilePreview.kt`：工作区 **`ModalBottomSheet`**（Git/文件双 tab）+ 文件预览（md 渲染 vs 行号文本）。
 - `ui/theme/PiDeckTheme.kt` + `WebTheme.kt` + `AppIcons.kt`：旧 Catppuccin/OneDark 移植 + 网页复刻 zinc（**默认走网页色**）+ 图标集中地（Material Icons Extended，**无 emoji**；Lucide A 套已删，定 B 套 Material）。
 - `ui/pair/PairScreen.kt`：扫码配对（CameraX + MLKit，支持手输地址）。
-- 测试 11 个（`src/test/…`）：`PairingParser` / `ChatStream` / `AskCard` / `ChatPlan` / `ChatTimeline`（混合消息分组＋跟随指纹）/ `ImageAttach` / `SessionsDrawer` / `ThemeContrast`（WCAG AA 门）/ `Workspace` / `MarkdownBody`（表格＋行内样式），与实现一一对应。
+- 测试 12 个 / 64 例（`src/test/…`）：`PairingParser` / `ChatStream` / `AskCard` / `ChatPlan` / `ChatTimeline`（混合消息分组＋跟随指纹＋搜索跳转 key）/ `ImageAttach` / `SessionsDrawer` / `ThemeContrast`（WCAG AA 门）/ `Workspace` / `MarkdownBody`（表格＋行内样式）/ `ModelsDsh`，与实现一一对应。
 
 ## 2. 服务端契约（详见 `docs/api-contract.md`，它仍是唯一真相源）
 
 - Base URL = 扫码得到，如 `http://<host>:8765`。局域网**不发任何鉴权头**；`token` 只预留（公网才加 `Authorization: Bearer` / `?token=`）。
-- 轮询：抽屉壳 `GET /api/state` **5s**；监控条双 5s 循环（失败保快照）；本会话待审批 3s；提示词搜索 250ms 防抖。
+- 轮询：抽屉壳 `GET /api/state` **5s**（同时订阅 `GET /api/events` SSE，`state` 事件到就重拉；流断了才回退 5s 轮询）；监控条双 5s 循环（失败保快照）；本会话待审批 3s；提示词搜索 250ms 防抖。
+- 搜索：`GET /api/sessions/:id/search?q=` → `{result:{sessions:[{matches:[{messageId,role,snippet}]}]}}`；`{result:null}` = 索引不可用，回退本地已加载搜索。
+- DSH 面板：`GET :id/dsh/{goal,skills,subagents}`、`GET :id/dsh/subagents/:child/history`、`GET /api/dsh/plugins`、`POST /api/dsh/plugins/install`、`POST /api/dsh/plugins/:id/{enable,disable,uninstall}`。空数组 = 该部署没开 DSH runtime，照实显示“没有…”。
 - 历史：`GET /api/sessions/:id/messages/page?before=&pageSize=30`，`nextBefore=null` = 到顶；`unavailable` 进错误态（inline 错误＋重试/忽略，输入框保留）。
 - 发送：`POST /api/chat`，body 含**每轮唯一的 `messageId`（UUID）**，复用会被服务端去重吞掉。
   图片走 `parts` 里 `type=file` 节点（`mediaType` + data URL `url`），**不是**顶层 `body.images`（送错字段图片丢失）。
@@ -60,6 +62,7 @@
 - 执行卡三级（网页 1:1，`ChatTimeline.kt`）：L1 头部计数行（可整体收纳）→ L2 具体工具/思考行 → L3 行内输入/思考正文，**无嵌套卡片**。
   连续 tool/reasoning 折进同一 ExecutionCard；**同类型工具调用不再跨消息并组**（旧 `bash × N` 已删，`0a43f4a`）。
 - Compose 展开态必须按身份 key：`remember(callId)` / `remember(text.hashCode())`（`ChatTimeline.kt:395,439`），否则复用串位（等价旧 `ValueKey` 规则）。
+- 搜索跳转按 **history key** 比：页面消息 id 是 `{sessionId}-history-{8hex}`（归一化后再加 `#index`），而 `/search` 命中只给 `{8hex}`。`ChatTimeline.kt` 的 `historyKey()` 先 `substringBefore('#')` 再 `substringAfterLast("-history-")`，两边都过它；直接比整串会让所有命中都显示“未加载，无法跳转”。
 - assistant 正文（历史＋流式）都过 `stripThinkingTags` 剥 `<thinking>…</thinking>`；思考只走 reasoning 通道；用户输入和工具原文不动。
 - 审批卡：单选点选项只选中（提交灰→亮），点“提交”才发；批量末题统一提交。**最后动哪里就提交哪里**（点选项只发选项，打字只发手输，不拼接）。换题按 request 重建选中态。
 - 思考档位取**实际所选模型的 `levels`**，空才回退网页 `WEB_THINKING_LEVELS`（`ModelSheet.kt:45,206`）；地球仪图标已换成星星形。
