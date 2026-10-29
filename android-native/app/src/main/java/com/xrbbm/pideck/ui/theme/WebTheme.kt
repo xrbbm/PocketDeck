@@ -5,7 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Web 1:1 tokens (from http://192.168.50.210:8765/assets/web-D16H8S27.css).
+ * Web 1:1 tokens (from http://192.168.1.10:8765/assets/web-D16H8S27.css).
  *
  * Light (:root) / Dark (:root[data-theme=dark]). Slot mapping:
  * bg-app -> surface, bg-sidebar/panel -> surfaceContainer*, text-primary ->

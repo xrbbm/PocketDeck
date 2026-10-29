@@ -84,7 +84,7 @@
 ## 4. 构建与验证（缺一不可）
 
 - 改完在 `android-native/` 下跑 `./gradlew :app:testDebugUnitTest`（74 个全过）+ 相关单测同步更新。
-  注意：本机 shell 的 `JAVA_HOME` 默认指向 JDK8，跑 gradle 前先 `export JAVA_HOME=C:/Users/shuyo/scoop/apps/zulu21-jdk/current`，否则报 `Gradle requires JVM 17 or later`。
+  注意：本机 shell 的 `JAVA_HOME` 默认指向 JDK8，跑 gradle 前先 `export JAVA_HOME=<jdk21 路径>`，否则报 `Gradle requires JVM 17 or later`。
 - 打包：`./gradlew :app:assembleRelease`，产物 `android-native/app/build/outputs/apk/release/app-release.apk`
   （release 约 36M，正式签名 `CN=XRBBM`；签名用根 `android/key.properties` + `android/keystore/*.jks`，无则 debug 兜底，`minify/shrink=false`）。
   **keystore 与密码自行备份，丢了无法覆盖安装。**（`android-native/build/` 未跟踪，注意别把构建产物带进提交。）
@@ -99,6 +99,6 @@
 - 原生已落地：扫码配对、聊天流式、审批、监控三条、Git/文件工作区、搜索/技能/扩展 sheets、主题切换、远端跟随、
   会话消息搜索（服务器索引＋跳转）、DSH 工具面板（目标/子代理/技能/插件）、`/api/events` SSE 推送、DSH 权限预设、
   供应商额度块、复制会话为 Markdown、刷新会话消息、项目移除。
-- 同步来源：网页端 `https://github.com/ayuayue/PiDeck`（本地部署 `http://192.168.50.210:8765`）。它的 API 层在 `/assets/web-*.js` 里（`apiFetch`/`getJson` 附近，约 300K 偏移），比桌面端 bundle 好读：抓下来 grep 函数名即可拿到真实 HTTP 形状。
+- 同步来源：网页端 `https://github.com/ayuayue/PiDeck`（本地部署 `http://192.168.1.10:8765`）。它的 API 层在 `/assets/web-*.js` 里（`apiFetch`/`getJson` 附近，约 300K 偏移），比桌面端 bundle 好读：抓下来 grep 函数名即可拿到真实 HTTP 形状。
 - 缺口判定方法：打开 `http://<host>:8765/` 网页版逐项点，凡网页有、APP 无或行为不一致的，记一条再动手；别凭印象加功能。
 - 别做：iOS / 双端复用（只做 Android）、安装/卸载技能与扩展（只做启停，网页亦如此）。

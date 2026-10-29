@@ -9,24 +9,24 @@ class PairingParserTest {
     @Test
     fun `accepts full http url`() {
         assertEquals(
-            "http://192.168.50.210:8765",
-            PairingParser.parseBaseUrl("http://192.168.50.210:8765"),
+            "http://192.168.1.10:8765",
+            PairingParser.parseBaseUrl("http://192.168.1.10:8765"),
         )
     }
 
     @Test
     fun `bare host defaults to http plus 8765`() {
         assertEquals(
-            "http://192.168.50.210:8765",
-            PairingParser.parseBaseUrl("192.168.50.210"),
+            "http://192.168.1.10:8765",
+            PairingParser.parseBaseUrl("192.168.1.10"),
         )
     }
 
     @Test
     fun `bare host with port keeps port`() {
         assertEquals(
-            "http://192.168.50.210:9000",
-            PairingParser.parseBaseUrl("192.168.50.210:9000"),
+            "http://192.168.1.10:9000",
+            PairingParser.parseBaseUrl("192.168.1.10:9000"),
         )
     }
 
@@ -41,8 +41,8 @@ class PairingParserTest {
     @Test
     fun `scheme case normalized`() {
         assertEquals(
-            "http://192.168.50.210:8765",
-            PairingParser.parseBaseUrl("HTTP://192.168.50.210:8765"),
+            "http://192.168.1.10:8765",
+            PairingParser.parseBaseUrl("HTTP://192.168.1.10:8765"),
         )
     }
 

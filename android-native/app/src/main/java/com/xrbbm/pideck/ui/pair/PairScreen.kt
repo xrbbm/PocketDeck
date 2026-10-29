@@ -102,7 +102,7 @@ fun PairScreen(onPaired: (String) -> Unit) {
                     value = manual,
                     onValueChange = { manual = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("http://192.168.50.210:8765") },
+                    placeholder = { Text("http://192.168.1.10:8765") },
                     singleLine = true,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
