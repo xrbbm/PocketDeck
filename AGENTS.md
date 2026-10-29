@@ -71,7 +71,9 @@
 - 工作区是 `ModalBottomSheet`（`WorkspaceDrawer.kt:84`），不是 dialog；TabRow 对齐＋`NoActionBar` 主题已修正。
 - 抽屉：宽 80%（身后聊天可见）；分组**默认折叠**＋ DataStore 持久化，退出重进保持展开态；行内 `+` 锁定本组建会话，新项目置顶；**无“安装 APP”菜单项**（`d035eb1` 删了，别加回来）。
 - 草稿是**内存态**（`ChatViewModel.kt:547 DraftBox`，`sessionId→(text,images)`，切会话/dispose 存、发送清）：进程被杀即丢，别承诺磁盘留存（README FAQ 待改）。
-- 输入框：模型名单开一行在上、动作为下；agent 切换＋思考档位下行靠左。小起步、随内容长到 **1/2 封顶**再内部滚动；
+- 输入框（网页 `web-composer` 复刻，`ChatScreen.kt` `InputCard`）：**收起态只有输入行 + 发送键**，聚焦或有内容才展开两行；
+  展开后第一行 `Pi · 图片 · 提示词 · 计划模式 …… 发送`，第二行 `模型签 · 思考档位`（思考档位 null 时补 `off` 兜底）。
+  宽度都按屏宽算（模型签 30% 屏宽），手机横屏也不溢出；高度 `min 112dp`、随内容长到 **1/2 屏高**再内部滚动；
   回到底部箭头收进输入框跟发送键并排、不悬浮压 chip，只有不在底部才出现。
 - 顶栏：40dp 紧凑贴顶、布局顶部对齐；左开抽屉、右上下文圆环；状态跟随 runtime/streaming。
 - 文件 chips 横向排（`c95729f`）；pinned 监控条与父卡去重（`cd4dfc6`）。配色默认网页复刻 zinc（`WebTheme.kt` 来自 `web-D16H8S27.css`），旧 Latte/OneDark 已让位。
