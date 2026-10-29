@@ -3,13 +3,13 @@
 PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机上接着聊——同一个 Wi-Fi 下扫个码，打开就是上次的会话。
 
 桌面端（上游）：[ayuayue/PiDeck](https://github.com/ayuayue/PiDeck)。
-版本号跟着桌面端走，`-n` 后面是原生端自己的第几版：比如 `v0.9.0-n1`，就是对着桌面端 `v0.9.0` 做的第一版。
+版本号跟桌面端的主版本对齐，`-n` 后面是这个主版本下推的第几版：比如 `v0.9.8-n1`，就是同步桌面端 `v0.9.8` 之后推的第一版，下一个补丁推 `v0.9.8-n2`。
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Android-lightgrey)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-blue)
 ![Compose](https://img.shields.io/badge/Compose-BOM%202025.10-4285f4)
-![Version](https://img.shields.io/badge/version-v0.9.0--n1-blue)
+![Version](https://img.shields.io/badge/version-v0.9.8--n1-blue)
 
 ## 📑 目录
 
@@ -40,7 +40,7 @@ PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机
 
 ## 📋 最近更新
 
-> 当前 `v0.9.0-n1`（对应桌面端 `v0.9.0`）
+> 当前 `v0.9.8-n1`（主版本同步桌面端 `v0.9.8`）
 
 - 🚀 **`/api/events` 状态推送** —— 服务端有变化立刻到，断线才退回 5 秒轮询
 - 🚀 **会话内消息搜索** —— 服务器索引命中 + 跳转到消息；索引不可用时自动回退本地已加载搜索
@@ -148,7 +148,7 @@ PiDeck 桌面端的手机客户端。电脑上聊到一半的 AI 会话，手机
 
 ## 📦 下载安装
 
-1. 电脑和手机连同一个 Wi-Fi，电脑上打开 PiDeck 的配对二维码（桌面端和手机端的版本号对上，比如桌面 `v0.9.0` 配手机 `v0.9.0-n1`）
+1. 电脑和手机连同一个 Wi-Fi，电脑上打开 PiDeck 的配对二维码（桌面端和手机端的主版本号对上，比如桌面 `v0.9.8` 配手机 `v0.9.8-n1`）
 2. 去本仓库右侧 [Releases](../../releases) 下载最新 APK 装到手机上
 3. 打开 APP 扫码，进去就是聊天
 

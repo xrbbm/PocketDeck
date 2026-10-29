@@ -8,7 +8,7 @@
 
 - 主线：`android-native/`，独立 Gradle 根（`pideck-native`，`include(":app")`）。
 - 包名注意：源码目录 `com.xrbbm.pideck`，但 `namespace` / `applicationId` = `com.xrbbm.pocketdeck`（`android-native/app/build.gradle.kts`），两者不一致，改包相关先核对。
-- 版本：跟桌面端 `vX`，原生后缀 `-nN`（如 `versionName 0.9.0-n1`）。
+- 版本：主版本跟桌面端对齐（`vX.Y.Z`），原生后缀 `-nN` = 这个主版本下推的第几版（如 `versionName 0.9.8-n1`，再推就是 `-n2`）。
 - 技术栈：Kotlin `2.4.0` + AGP `9.1.0` + `compile/targetSdk 36` + `minSdk 26` + JVM17；Compose BOM `2025.10.01` + M3；
   `okhttp 5.1.0` + `okhttp-sse`、`kotlinx-serialization-json`、`coroutines`、`datastore-preferences`（配对持久化）、
   CameraX + MLKit（扫码，替代 `mobile_scanner`）、`commonmark`（Markdown 渲染）、`material-icons-core/extended`。
