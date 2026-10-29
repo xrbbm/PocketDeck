@@ -30,11 +30,12 @@
 - `ui/chat/ToolCards.kt` + `AskCards.kt`：执行卡 L1–L3（见 §3）+ 审批卡。`Strips.kt`：文件/子代理/todo 常驻监控条。
 - `ui/chat/ModelSheet.kt` + `PromptSheet.kt` + `MessageSearchSheet.kt` + `SkillsExtensionsSheet.kt` + `DshToolsSheet.kt` + `ImageAttach.kt`：
   模型档位表（档位取真实模型，见 §3）/ 提示词库（250ms 防抖搜索＋分类）/ 服务器索引搜索＋跳转 / 技能扩展开关 / DSH 工具面板（目标・子代理・技能・插件）/ 图片附件（上限 4 张，大图压到 1600 长边再传）。
+- `ui/chat/ProviderUsageBlock.kt` + `SessionMarkdown.kt` + `core/net/ModelsUsage.kt`：上下文用量 sheet 里的供应商额度块（服务端没开就整块不渲染）/ “复制会话为 Markdown” 序列化 / `GET /api/usage/:provider` 三种形状（periods・credits・balance）。
 - `ui/shell/ShellScreen.kt` + `SessionsDrawer.kt`：抽屉壳（`GET /api/state` **5s** 轮询）+ 分组会话抽屉（宽 **80%**，默认折叠＋持久化）。
 - `ui/workspace/WorkspaceDrawer.kt` + `FilePreview.kt`：工作区 **`ModalBottomSheet`**（Git/文件双 tab）+ 文件预览（md 渲染 vs 行号文本）。
 - `ui/theme/PiDeckTheme.kt` + `WebTheme.kt` + `AppIcons.kt`：旧 Catppuccin/OneDark 移植 + 网页复刻 zinc（**默认走网页色**）+ 图标集中地（Material Icons Extended，**无 emoji**；Lucide A 套已删，定 B 套 Material）。
 - `ui/pair/PairScreen.kt`：扫码配对（CameraX + MLKit，支持手输地址）。
-- 测试 12 个 / 64 例（`src/test/…`）：`PairingParser` / `ChatStream` / `AskCard` / `ChatPlan` / `ChatTimeline`（混合消息分组＋跟随指纹＋搜索跳转 key）/ `ImageAttach` / `SessionsDrawer` / `ThemeContrast`（WCAG AA 门）/ `Workspace` / `MarkdownBody`（表格＋行内样式）/ `ModelsDsh`，与实现一一对应。
+- 测试 14 个 / 74 例（`src/test/…`）：`PairingParser` / `ChatStream` / `AskCard` / `ChatPlan` / `ChatTimeline`（混合消息分组＋跟随指纹＋搜索跳转 key）/ `ImageAttach` / `SessionsDrawer` / `ThemeContrast`（WCAG AA 门）/ `Workspace` / `MarkdownBody`（表格＋行内样式）/ `ModelsDsh` / `ProviderUsage` / `SessionMarkdown`，与实现一一对应。
 
 ## 2. 服务端契约（详见 `docs/api-contract.md`，它仍是唯一真相源）
 
@@ -49,6 +50,9 @@
 - 模型：运行中 → `runtime/model` + `runtime/thinking` 即时下发；**idle 会话 → `POST /api/sessions/:id/update` 写模型档位，下次运行生效**，本地签立即更新。
 - 审批：`state.pendingUiRequests` 只取 `sessionId==当前会话` 的那条，`POST /api/ui-response` 原样回传身份字段＋`response`。
 - 上下文圆环：`runtime/state` 取 `WebContextUsage`，有 runtime 且 `window>0` 才显示；百分比可点开用量 sheet。
+- 供应商额度：`GET /api/usage/:provider`（dsh 带 `?backend=dsh`）→ `result.success=false`（未开启探针）= **整块不渲染**；真形状 `kind=periods`（`periods.{rolling,weekly,monthly}.percent`）/ `credits`（`credits.windows[].{key,percent,remaining,total,used}`，无 percent 时按 used/total 算）/ `balance`（`balance.value`）。
+- DSH 权限预设：`POST :id/runtime/permission`（body `{target,preset}`）→ 有 runtime 才下发，随后一律 `POST :id/update {permissionPreset}` 落记录（下次运行生效）；`danger-full-access` 必须先弹二次确认。有效值优先取 `runtime/state.permissionPreset`。
+- 项目移除：`POST /api/projects/:id/delete` 只删 catalog 记录、**不删文件**；抽屉里项目行长按触发（网页在项目菜单里）。
 - 会话操作：重命名/偏好走 `update`（catalog 层，无需 runtime）；复制 `copy` 回 `{result:{session:{id}}}`；开分支 `runtime/clone` 回 `{session:{id}}`；
   重启 `runtime/restart`、压缩 `runtime/compact`（可选 prompt）；导出 `GET :id/export-html` 拿字节。
 - 监控：`GET :id/{file-changes,subagents,todo}` 只读快照。Git（`status|diff|log`）＋文件（`files|file-content`）**全带 `projectId`**；文件内容 512KB 有界。
@@ -75,10 +79,13 @@
 - 顶栏：40dp 紧凑贴顶、布局顶部对齐；左开抽屉、右上下文圆环；状态跟随 runtime/streaming。
 - 文件 chips 横向排（`c95729f`）；pinned 监控条与父卡去重（`cd4dfc6`）。配色默认网页复刻 zinc（`WebTheme.kt` 来自 `web-D16H8S27.css`），旧 Latte/OneDark 已让位。
 - 单测对照：`PairingParserTest` 锁 `parseBaseUrl`（非 http(s) 返回 null）；`ThemeContrastTest` 锁 WCAG AA 4.5；别写死颜色，全跟主题走。
+- 复制 Markdown（`SessionMarkdown.kt`，对齐网页 `sessionUiMessagesToMarkdown`）：思考/工具折成 `<details>`，工具带 `Tool: 名字`＋`Input:`/`Output:`（错误时用 `Error:` 顶掉 output），图片只留 `![mime](data:…前 64 字符)`（整段 data URL 会把剪贴板撑爆），消息间用 `---` 分隔。
+- 权限菜单只对 `session.backend == "dsh"` 出现；切换后不发额外刷新——3s 的 `runtime/state` 轮询会把 `permissionPreset` 带回来。
 
 ## 4. 构建与验证（缺一不可）
 
-- 改完在 `android-native/` 下跑 `./gradlew :app:testDebugUnitTest`（56 个全过）+ 相关单测同步更新；`archive-flutter/` 只读参考，不跑 `flutter analyze/test`。
+- 改完在 `android-native/` 下跑 `./gradlew :app:testDebugUnitTest`（74 个全过）+ 相关单测同步更新；`archive-flutter/` 只读参考，不跑 `flutter analyze/test`。
+  注意：本机 shell 的 `JAVA_HOME` 默认指向 JDK8，跑 gradle 前先 `export JAVA_HOME=C:/Users/shuyo/scoop/apps/zulu21-jdk/current`，否则报 `Gradle requires JVM 17 or later`。
 - 打包：`./gradlew :app:assembleRelease`，产物 `android-native/app/build/outputs/apk/release/app-release.apk`
   （release 约 36M，正式签名 `CN=XRBBM`；签名用根 `android/key.properties` + `android/keystore/*.jks`（Flutter 归档后仅剩的签名材料），无则 debug 兜底，`minify/shrink=false`）。
   **keystore 与密码自行备份，丢了无法覆盖安装。**（`android-native/build/` 未跟踪，注意别把构建产物带进提交。）
@@ -90,6 +97,9 @@
 
 ## 5. 接着做（对照网页版查漏，以契约为准）
 
-- 原生已落地：扫码配对、聊天流式、审批、监控三条、Git/文件工作区、搜索/技能/扩展 sheets、主题切换、远端跟随。
+- 原生已落地：扫码配对、聊天流式、审批、监控三条、Git/文件工作区、搜索/技能/扩展 sheets、主题切换、远端跟随、
+  会话消息搜索（服务器索引＋跳转）、DSH 工具面板（目标/子代理/技能/插件）、`/api/events` SSE 推送、DSH 权限预设、
+  供应商额度块、复制会话为 Markdown、刷新会话消息、项目移除。
+- 同步来源：网页端 `https://github.com/ayuayue/PiDeck`（本地部署 `http://192.168.50.210:8765`）。它的 API 层在 `/assets/web-*.js` 里（`apiFetch`/`getJson` 附近，约 300K 偏移），比桌面端 bundle 好读：抓下来 grep 函数名即可拿到真实 HTTP 形状。
 - 缺口判定方法：打开 `http://<host>:8765/` 网页版逐项点，凡网页有、APP 无或行为不一致的，记一条再动手；别凭印象加功能。
 - 别做：iOS / 双端复用（只做 Android）、`lib/` Flutter 旧代码任何改动、安装/卸载技能与扩展（只做启停，网页亦如此）。

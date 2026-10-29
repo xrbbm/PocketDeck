@@ -291,6 +291,14 @@ class ApiClient(
         )
     }
 
+    /** Persist the preset for idle sessions (next run picks it up). */
+    suspend fun updateSessionPermission(sessionId: String, preset: String) {
+        postJson(
+            "/api/sessions/${URLEncoder.encode(sessionId, "UTF-8")}/update",
+            buildJsonObject { put("permissionPreset", preset) },
+        )
+    }
+
     suspend fun updateSessionRecord(
         sessionId: String,
         modelProvider: String? = null,
@@ -863,6 +871,34 @@ class ApiClient(
         postJson(
             "/api/dsh/plugins/${URLEncoder.encode(pluginId, "UTF-8")}/$action",
             body,
+        )
+    }
+
+    /** GET /api/usage/:provider — provider quota snapshot (`disabled` when off). */
+    suspend fun fetchProviderUsage(provider: String, backend: String = "pi"): ProviderUsage {
+        val query = if (backend == "dsh") mapOf("backend" to "dsh") else null
+        val json = getJson("/api/usage/${URLEncoder.encode(provider, "UTF-8")}", query)
+        return ProviderUsage.fromJson(json["result"] as? JsonObject)
+    }
+
+    /** POST /api/projects/:id/delete — drops the catalog entry, keeps the files. */
+    suspend fun deleteProject(projectId: String) {
+        postJson(
+            "/api/projects/${URLEncoder.encode(projectId, "UTF-8")}/delete",
+            buildJsonObject {},
+        )
+    }
+
+    /** runtime/permission — DSH sessions only (sandbox + approval bundle). */
+    suspend fun setRuntimePermission(
+        sessionId: String,
+        agentId: String,
+        runtimeGeneration: Int,
+        preset: String,
+    ) {
+        runtimeCommand(
+            sessionId, agentId, runtimeGeneration, "permission",
+            buildJsonObject { put("preset", preset) },
         )
     }
 }

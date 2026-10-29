@@ -46,6 +46,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.xrbbm.pideck.core.net.ApiClient
 import com.xrbbm.pideck.core.net.UiMessage
@@ -96,6 +98,30 @@ fun ChatScreen(
     var jumpTo by remember { mutableStateOf<String?>(null) }
     var showSkills by remember { mutableStateOf(false) }
     var showDsh by remember { mutableStateOf(false) }
+    var permissionMenu by remember { mutableStateOf(false) }
+    var confirmFullAccess by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    val switchPermission: (String) -> Unit = { preset ->
+        scope.launch {
+            try {
+                // Live runtime applies immediately; the record write keeps the
+                // next run on the same preset (web does both).
+                val rt = vm.runtime
+                if (rt != null && rt.agentId.isNotEmpty()) {
+                    api.setRuntimePermission(
+                        session.id,
+                        rt.agentId,
+                        rt.runtimeGeneration ?: 0,
+                        preset,
+                    )
+                }
+                api.updateSessionPermission(session.id, preset)
+                snack.showSnackbar("已切换权限预设：${DSH_PERMISSION_PRESETS.first { it.id == preset }.label}")
+            } catch (e: Exception) {
+                snack.showSnackbar("切换失败：${e.message}")
+            }
+        }
+    }
     val onlineColor = MaterialTheme.colorScheme.secondary
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
@@ -148,6 +174,50 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    // DSH-only permission preset (web: DshPermissionMenu in the
+                    // composer bar; kept in the header here to avoid growing
+                    // InputCard's already wide parameter list).
+                    if (session.backend == "dsh") {
+                        IconButton(onClick = { permissionMenu = true }) {
+                            Icon(
+                                AppIcons.Security,
+                                contentDescription = "权限预设",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = permissionMenu,
+                            onDismissRequest = { permissionMenu = false },
+                        ) {
+                            DSH_PERMISSION_PRESETS.forEach { preset ->
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(preset.label)
+                                            Text(
+                                                preset.description,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    },
+                                    trailingIcon = {
+                                        if (preset.id == vm.usage?.permissionPreset) {
+                                            Icon(AppIcons.Check, contentDescription = null)
+                                        }
+                                    },
+                                    onClick = {
+                                        permissionMenu = false
+                                        if (preset.id == "danger-full-access") {
+                                            confirmFullAccess = true
+                                        } else {
+                                            switchPermission(preset.id)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
                     // Context ring: only with a runtime window (mirrors ContextRing).
                     // Tap opens the usage sheet (mirrors Flutter _showUsage).
                     val u = vm.usage
@@ -222,6 +292,27 @@ fun ChatScreen(
                             onClick = {
                                 overflow = false
                                 showDsh = true
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("复制会话为 Markdown") },
+                            leadingIcon = {
+                                Icon(AppIcons.Copy, contentDescription = null)
+                            },
+                            onClick = {
+                                overflow = false
+                                clipboard.setText(AnnotatedString(sessionToMarkdown(vm.messages)))
+                                scope.launch { snack.showSnackbar("已复制") }
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("刷新会话消息") },
+                            leadingIcon = {
+                                Icon(AppIcons.Refresh, contentDescription = null)
+                            },
+                            onClick = {
+                                overflow = false
+                                scope.launch { vm.loadFirst() }
                             },
                         )
                     }
@@ -420,12 +511,42 @@ fun ChatScreen(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+                    Spacer(Modifier.height(12.dp))
+                    ProviderUsageBlock(
+                        api = api,
+                        provider = session.modelProvider,
+                        backend = session.backend ?: "pi",
+                    )
                     Spacer(Modifier.height(24.dp))
                 }
             }
         } else {
             showUsage = false
         }
+    }
+
+    if (confirmFullAccess) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmFullAccess = false },
+            title = { Text("切换到完全访问？") },
+            text = {
+                Text(
+                    "完全访问（danger-full-access）下工具调用无需逐次批准，" +
+                        "可以执行任意命令并写入任意文件。确认切换到该预设？",
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmFullAccess = false
+                    switchPermission("danger-full-access")
+                }) { Text("确认切换") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmFullAccess = false
+                }) { Text("取消") }
+            },
+        )
     }
 
     if (showDsh) {
@@ -674,3 +795,19 @@ private fun InputCard(
         }
     }
 }
+
+/**
+ * DSH permission presets (web `DSH_PERMISSION_PRESETS`): sandbox + approval
+ * policy in one switch. Ids are the server-side enum values.
+ */
+private data class DshPermissionPreset(
+    val id: String,
+    val label: String,
+    val description: String,
+)
+
+private val DSH_PERMISSION_PRESETS = listOf(
+    DshPermissionPreset("read-only", "Read Only", "沙箱只读 + 每次批准"),
+    DshPermissionPreset("workspace-write", "Workspace Write", "工作区写入 + 每次批准（默认）"),
+    DshPermissionPreset("danger-full-access", "Full access", "完全访问 + 无需批准"),
+)

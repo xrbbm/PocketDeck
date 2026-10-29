@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.SmartToy
@@ -94,6 +95,8 @@ object AppIcons {
     val Add = Icons.Filled.Add
     val Edit = Icons.Filled.Edit
     val Copy = Icons.Filled.ContentCopy
+    // DSH permission menu entry (web uses ShieldAlert/ShieldCheck/ShieldOff).
+    val Security = Icons.Filled.Security
     val Delete = Icons.Filled.Delete
     val Play = Icons.Filled.PlayArrow
     val Run = Icons.Filled.Bolt

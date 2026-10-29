@@ -87,6 +87,8 @@ data class WebContextUsage(
     val contextOverflow: Boolean = false,
     val inputTokens: Int? = null,
     val outputTokens: Int? = null,
+    /** DSH agent state carries the live permission preset (web: runtime.state). */
+    val permissionPreset: String? = null,
 ) {
     val percent: Double get() {
         val p = contextPercent
@@ -106,6 +108,7 @@ data class WebContextUsage(
             contextOverflow = json?.bool("contextOverflow") ?: false,
             inputTokens = json?.intOrNull("inputTokens"),
             outputTokens = json?.intOrNull("outputTokens"),
+            permissionPreset = json?.strOrNull("permissionPreset"),
         )
     }
 }

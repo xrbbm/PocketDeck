@@ -83,6 +83,7 @@ fun ShellScreen(
     var lockSessionProject by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<WebSession?>(null) }
     var deleteTarget by remember { mutableStateOf<WebSession?>(null) }
+    var deleteProjectId by remember { mutableStateOf<String?>(null) }
     var confirmUnpair by remember { mutableStateOf(false) }
     // Drawer group expand memory: default collapsed, survives restarts.
     var expandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -209,6 +210,7 @@ fun ShellScreen(
                         }
                     },
                     onDelete = { deleteTarget = it },
+                    onDeleteProject = { deleteProjectId = it },
                     onDisconnect = { confirmUnpair = true },
                     onRefresh = { scope.launch { refresh() } },
                     isDark = isDark,
@@ -348,6 +350,35 @@ fun ShellScreen(
             },
             dismissButton = {
                 TextButton(onClick = { renameTarget = null }) { Text("取消") }
+            },
+        )
+    }
+
+    deleteProjectId?.let { pid ->
+        AlertDialog(
+            onDismissRequest = { deleteProjectId = null },
+            title = { Text("移除项目？") },
+            text = { Text("只移除项目列表记录，不删除项目文件。确定继续吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        muted = true
+                        try {
+                            api.deleteProject(pid)
+                            refresh()
+                        } catch (e: Exception) {
+                            snack.showSnackbar(
+                                "移除失败：${(e as? ApiException)?.message ?: e}",
+                            )
+                        } finally {
+                            muted = false
+                            deleteProjectId = null
+                        }
+                    }
+                }) { Text("移除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteProjectId = null }) { Text("取消") }
             },
         )
     }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +72,7 @@ fun SessionsDrawer(
     onCopy: (WebSession) -> Unit,
     onExport: (WebSession) -> Unit,
     onDelete: (WebSession) -> Unit,
+    onDeleteProject: (String) -> Unit = {},
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
     isDark: Boolean,
@@ -78,6 +80,7 @@ fun SessionsDrawer(
 ) {
     var query by remember { mutableStateOf("") }
     var menuSession by remember { mutableStateOf<WebSession?>(null) }
+    var deleteProjectId by remember { mutableStateOf<String?>(null) }
 
     val projectName = remember(state) {
         (state?.projects ?: emptyList()).associate { it.id to it.name }
@@ -189,7 +192,11 @@ fun SessionsDrawer(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = { setOpen(!open) },
-                                        onLongClick = {},
+                                        // Web puts 移除项目 in a per-project menu;
+                                        // long-press is the mobile equivalent.
+                                        onLongClick = {
+                                            if (!g.isChat) deleteProjectId = g.id
+                                        },
                                     )
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -263,6 +270,23 @@ fun SessionsDrawer(
             )
             TextButton(onClick = onDisconnect) { Text("断开") }
         }
+    }
+
+    deleteProjectId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { deleteProjectId = null },
+            title = { Text("移除项目？") },
+            text = { Text("只移除项目列表记录，不删除项目文件。确定继续吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteProjectId = null
+                    onDeleteProject(id)
+                }) { Text("移除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteProjectId = null }) { Text("取消") }
+            },
+        )
     }
 
     menuSession?.let { s ->
