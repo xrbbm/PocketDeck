@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -243,7 +244,10 @@ fun ChatTimeline(
                         }
                     }
                     is TimelineBlock.Execution -> {
-                        item(key = "exec-$bi-${block.messages.first().id}") {
+                        // Key must be identity-only: a block index would shift
+                        // when history pages prepend, recreating every card and
+                        // wiping its collapse state.
+                        item(key = executionBlockKey(block.messages)) {
                             ExecutionCard(messages = block.messages)
                         }
                     }
@@ -350,6 +354,14 @@ fun findJumpBlock(blocks: List<TimelineBlock>, messageId: String): Int {
     }
 }
 
+/**
+ * LazyColumn key for an execution block. Identity only: a block index
+ * would shift when history pages prepend, recreating every card and
+ * wiping its collapse state.
+ */
+fun executionBlockKey(messages: List<UiMessage>): String =
+    "exec-" + (messages.firstOrNull()?.id ?: "empty")
+
 fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {
     val out = mutableListOf<TimelineBlock>()
     var run = mutableListOf<UiMessage>()
@@ -377,7 +389,9 @@ fun splitExecutionBlocks(messages: List<UiMessage>): List<TimelineBlock> {
  */
 @Composable
 fun ExecutionCard(messages: List<UiMessage>, modifier: Modifier = Modifier) {
-    var expanded by remember { mutableStateOf(true) }
+    // rememberSaveable keeps the collapse state when the LazyColumn disposes
+    // this item (scrolled off-screen) or when paging prepends messages.
+    var expanded by rememberSaveable(messages.firstOrNull()?.id) { mutableStateOf(true) }
     var toolCount = 0
     var thinkCount = 0
     for (m in messages) {
@@ -461,10 +475,14 @@ fun ExecutionCard(messages: List<UiMessage>, modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     for (m in messages) {
-                        for (p in m.parts) {
+                        m.parts.forEachIndexed { pi, p ->
+                            val stateKey = "${m.id}#$pi"
                             when (p) {
-                                is UiPart.Tool -> ExecutionToolRow(part = p)
-                                is UiPart.Reasoning -> ExecutionThinkRow(text = p.text)
+                                is UiPart.Tool -> ExecutionToolRow(part = p, stateKey = stateKey)
+                                is UiPart.Reasoning -> ExecutionThinkRow(
+                                    text = p.text,
+                                    stateKey = stateKey,
+                                )
                                 else -> Unit
                             }
                         }
@@ -478,8 +496,8 @@ fun ExecutionCard(messages: List<UiMessage>, modifier: Modifier = Modifier) {
 
 /** L2 tool entry row: icon + name + chevron, expands L3 input/output. */
 @Composable
-private fun ExecutionToolRow(part: UiPart.Tool) {
-    var open by remember(part.callId) { mutableStateOf(false) }
+private fun ExecutionToolRow(part: UiPart.Tool, stateKey: String) {
+    var open by rememberSaveable(stateKey) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -522,8 +540,8 @@ private fun ExecutionToolRow(part: UiPart.Tool) {
 
 /** L2 thinking entry row: icon + summary + chevron, expands L3 text. */
 @Composable
-private fun ExecutionThinkRow(text: String) {
-    var open by remember(text.hashCode()) { mutableStateOf(false) }
+private fun ExecutionThinkRow(text: String, stateKey: String) {
+    var open by rememberSaveable(stateKey) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -674,8 +692,8 @@ private fun MessageRow(message: UiMessage, onUserLongPress: () -> Unit) {
                         )
                     }
                 }
-                is UiPart.Reasoning -> ReasoningCard(text = part.text)
-                is UiPart.Tool -> FullToolCard(part = part)
+                is UiPart.Reasoning -> ReasoningCard(text = part.text, stateKey = "${message.id}#$index")
+                is UiPart.Tool -> FullToolCard(part = part, stateKey = "${message.id}#$index")
                 is UiPart.File -> Unit
             }
         }
@@ -718,8 +736,8 @@ private fun EmptyTimeline() {
 }
 
 @Composable
-private fun ReasoningCard(text: String) {
-    var expanded by remember { mutableStateOf(false) }
+private fun ReasoningCard(text: String, stateKey: String) {
+    var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
     Surface(
         tonalElevation = 1.dp,
         shape = RoundedCornerShape(12.dp),

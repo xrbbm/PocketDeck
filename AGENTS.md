@@ -62,7 +62,8 @@
 - 混合消息先归一化再分组（`ChatTimeline.kt`：`normalizeTimelineParts`）：历史映射（thinking+text 同条）和流式（text/tool/text 同条）都会产出混合消息，`isExecutionMessage` 的 `parts.all` 会把它判 Single 导致 tool/reasoning 漏到 `MessageRow` 裸渲染（思考卡裸奔、流式调用变一级卡）。修法只动分组层——按 part 拆成纯单 part 消息（id 后缀 `#index`）再进原有折叠逻辑；渲染层和 ViewModel 不动。
 - 执行卡三级（网页 1:1，`ChatTimeline.kt`）：L1 头部计数行（可整体收纳）→ L2 具体工具/思考行 → L3 行内输入/思考正文，**无嵌套卡片**。
   连续 tool/reasoning 折进同一 ExecutionCard；**同类型工具调用不再跨消息并组**（旧 `bash × N` 已删，`0a43f4a`）。
-- Compose 展开态必须按身份 key：`remember(callId)` / `remember(text.hashCode())`（`ChatTimeline.kt:395,439`），否则复用串位（等价旧 `ValueKey` 规则）。
+- Compose 展开态必须按身份 key 且用 `rememberSaveable`：`rememberSaveable("{messageId}#{partIndex}")`（`ChatTimeline.kt`），否则 LazyColumn 回收后状态丢（点了收起、划走再回来又展开）。
+- LazyColumn 的 item key **只能含身份，不能含下标**：执行卡用 `executionBlockKey()` = `exec-{first.id}`。旧 key `exec-$bi-{id}` 带 block 下标，上滑翻页 prepend 后下标整体位移 → 所有卡片重建、收起态全丢。
 - 搜索跳转按 **history key** 比：页面消息 id 是 `{sessionId}-history-{8hex}`（归一化后再加 `#index`），而 `/search` 命中只给 `{8hex}`。`ChatTimeline.kt` 的 `historyKey()` 先 `substringBefore('#')` 再 `substringAfterLast("-history-")`，两边都过它；直接比整串会让所有命中都显示“未加载，无法跳转”。
 - assistant 正文（历史＋流式）都过 `stripThinkingTags` 剥 `<thinking>…</thinking>`；思考只走 reasoning 通道；用户输入和工具原文不动。
 - 审批卡：单选点选项只选中（提交灰→亮），点“提交”才发；批量末题统一提交。**最后动哪里就提交哪里**（点选项只发选项，打字只发手输，不拼接）。换题按 request 重建选中态。

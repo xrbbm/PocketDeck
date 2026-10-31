@@ -107,4 +107,23 @@ class ChatTimelineTest {
         assertEquals("59670a0c", historyKey("$sid-history-59670a0c#0"))
         assertEquals("m1", historyKey("m1"))
     }
+
+    @Test
+    fun `execution card key does not shift when history prepends`() {
+        // Paging up prepends older messages, which shifts every block index.
+        // The LazyColumn key must stay identity-only or each card is
+        // recreated and its collapse state is lost.
+        val card = listOf(
+            UiMessage("s-history-bbbbbbbb", "assistant", listOf(tool("read"))),
+            UiMessage("s-history-cccccccc", "assistant", listOf(tool("bash"))),
+        )
+        val before = splitExecutionBlocks(card).first() as TimelineBlock.Execution
+        val prepended = listOf(
+            UiMessage("s-history-aaaaaaaa", "assistant", listOf(tool("grep"))),
+            UiMessage("s-history-99999999", "assistant", listOf(UiPart.Text("更早的回复"))),
+        ) + card
+        val after = splitExecutionBlocks(prepended).last() as TimelineBlock.Execution
+        assertEquals(executionBlockKey(before.messages), executionBlockKey(after.messages))
+        assertEquals("exec-s-history-bbbbbbbb", executionBlockKey(after.messages))
+    }
 }

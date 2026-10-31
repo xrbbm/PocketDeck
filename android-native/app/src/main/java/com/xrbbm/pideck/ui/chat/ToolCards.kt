@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +64,7 @@ fun ToolBody(part: UiPart.Tool, modifier: Modifier = Modifier) {
  * input/output. Disabled from expanding when there is no body.
  */
 @Composable
-fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
+fun FullToolCard(part: UiPart.Tool, stateKey: String, modifier: Modifier = Modifier) {
     val errorText = prettyToolValue(
         part.errorText?.let {
             kotlinx.serialization.json.JsonPrimitive(it)
@@ -73,7 +74,7 @@ fun FullToolCard(part: UiPart.Tool, modifier: Modifier = Modifier) {
     val outputText = prettyToolValue(part.output)
     val hasBody = errorText.isNotEmpty() || inputText.isNotEmpty() || outputText.isNotEmpty()
     val summary = toolSummary(part)
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
 
     // M3 hierarchy: ElevatedCard + status AssistChip + tonal content blocks.
     Card(
